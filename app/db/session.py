@@ -1,8 +1,12 @@
+# app/db/session.py
+
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-# Reemplaza con tu conexión real
-SQLALCHEMY_DATABASE_URL = "postgresql://usuario:contraseña@localhost:5432/nombre_db"
+SQLALCHEMY_DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql://postgres:postgres@db:5432/cashflowiq"
+)
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={})
 
