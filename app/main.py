@@ -1,6 +1,15 @@
+# app/main.py
+
+import logging
 from fastapi import FastAPI
 from app.api.routes import auth
 
+# Configuración global de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
 app = FastAPI()
 
-app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])

@@ -21,3 +21,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Keys
+app/core/config/serviceAccountKey.json
