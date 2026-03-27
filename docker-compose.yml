@@ -23,6 +23,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/cashflowiq
     volumes:
       - .:/app
+      - ./app/core/config/serviceAccountKey.json:/app/app/core/config/serviceAccountKey.json:ro
     restart: always
 
 volumes:
