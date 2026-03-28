@@ -11,7 +11,7 @@ class BankAccount(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    initialAmount = Column(Float, nullable=False, default=0)
+    initial_amount = Column(Float, nullable=False, default=0)
 
     currency = Column(String, nullable=False)  # PEN, USD, etc.
 

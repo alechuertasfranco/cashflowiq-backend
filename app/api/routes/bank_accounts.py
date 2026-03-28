@@ -35,7 +35,7 @@ def create_account(
 ):
     new_account = BankAccount(
         name=account.name,
-        initialAmount=account.initialAmount,
+        initial_amount=account.initial_amount,
         currency=account.currency,
         user_id=current_user.id,
     )
@@ -67,7 +67,7 @@ def update_account(
         raise HTTPException(status_code=404, detail="Account not found")
 
     existing.name = account.name
-    existing.initialAmount = account.initialAmount
+    existing.initial_amount = account.initial_amount
     existing.currency = account.currency
 
     db.commit()

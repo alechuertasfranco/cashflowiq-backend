@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 class BankAccountBase(BaseModel):
     name: str
-    initialAmount: float
+    initial_amount: float
     currency: str
 
 
