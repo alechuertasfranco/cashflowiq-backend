@@ -37,13 +37,12 @@ def create_account(
         name=account.name,
         initial_amount=account.initial_amount,
         currency=account.currency,
+        bank_entity_id=account.bank_entity_id,
         user_id=current_user.id,
     )
-
     db.add(new_account)
     db.commit()
     db.refresh(new_account)
-
     return new_account
 
 
@@ -56,10 +55,7 @@ def update_account(
 ):
     existing = (
         db.query(BankAccount)
-        .filter(
-            BankAccount.id == account_id,
-            BankAccount.user_id == current_user.id,
-        )
+        .filter(BankAccount.id == account_id, BankAccount.user_id == current_user.id)
         .first()
     )
 
@@ -69,10 +65,10 @@ def update_account(
     existing.name = account.name
     existing.initial_amount = account.initial_amount
     existing.currency = account.currency
+    existing.bank_entity_id = account.bank_entity_id
 
     db.commit()
     db.refresh(existing)
-
     return existing
 
 
