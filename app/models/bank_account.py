@@ -17,4 +17,4 @@ class BankAccount(Base):
     bank_entity_id = Column(Integer, ForeignKey("bank_entities.id"), nullable=False)
 
     user = relationship("User", backref="bank_accounts")
-    bank_entity_rel = relationship("BankEntity", backref="accounts")
+    bank_entity = relationship("BankEntity", back_populates="accounts")
