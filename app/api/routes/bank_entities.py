@@ -29,7 +29,7 @@ def create_entity(
     current_user: User = Depends(get_current_user),
 ):
     new_entity = BankEntity(
-        name=entity.name, color=entity.color, user_id=current_user.id
+        name=entity.name, code=entity.code, color=entity.color, user_id=current_user.id
     )
     db.add(new_entity)
     db.commit()
@@ -53,6 +53,7 @@ def update_entity(
         raise HTTPException(status_code=404, detail="Entity not found")
 
     existing.name = entity.name
+    existing.code = entity.code
     existing.color = entity.color
     db.commit()
     db.refresh(existing)

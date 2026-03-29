@@ -4,6 +4,7 @@ from typing import Optional
 
 class BankEntityBase(BaseModel):
     name: str
+    code: str
     color: Optional[str] = None
 
 
