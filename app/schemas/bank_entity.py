@@ -1,11 +1,10 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
-from uuid import UUID
 
 
 class BankEntityBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
-    color: Optional[str] = Field(None, regex=r"^[0-9A-Fa-f]{6}$")
+    name: str
+    color: Optional[str] = None
 
 
 class BankEntityCreate(BankEntityBase):
@@ -17,7 +16,8 @@ class BankEntityUpdate(BankEntityBase):
 
 
 class BankEntityResponse(BankEntityBase):
-    id: UUID
+    id: int
+    user_id: int
 
     class Config:
         from_attributes = True

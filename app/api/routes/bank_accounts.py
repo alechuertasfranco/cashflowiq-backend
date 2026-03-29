@@ -2,7 +2,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
 from app.models.bank_account import BankAccount
 from app.schemas.bank_account import (
     BankAccountCreate,
@@ -17,13 +16,11 @@ router = APIRouter(prefix="/bank-accounts", tags=["Bank Accounts"])
 
 @router.get("", response_model=list[BankAccountResponse])
 def get_accounts(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     accounts = (
         db.query(BankAccount).filter(BankAccount.user_id == current_user.id).all()
     )
-
     return accounts
 
 
@@ -58,7 +55,6 @@ def update_account(
         .filter(BankAccount.id == account_id, BankAccount.user_id == current_user.id)
         .first()
     )
-
     if not existing:
         raise HTTPException(status_code=404, detail="Account not found")
 
@@ -80,17 +76,12 @@ def delete_account(
 ):
     existing = (
         db.query(BankAccount)
-        .filter(
-            BankAccount.id == account_id,
-            BankAccount.user_id == current_user.id,
-        )
+        .filter(BankAccount.id == account_id, BankAccount.user_id == current_user.id)
         .first()
     )
-
     if not existing:
         raise HTTPException(status_code=404, detail="Account not found")
 
     db.delete(existing)
     db.commit()
-
     return {"message": "Deleted successfully"}

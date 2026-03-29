@@ -1,8 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
-from uuid import UUID
-
 from app.models.bank_entity import BankEntity
 from app.schemas.bank_entity import (
     BankEntityCreate,
@@ -15,10 +12,9 @@ from app.models.user import User
 router = APIRouter(prefix="/bank-entities", tags=["Bank Entities"])
 
 
-@router.get("", response_model=List[BankEntityResponse])
+@router.get("", response_model=list[BankEntityResponse])
 def get_entities(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     entities = db.query(BankEntity).filter(BankEntity.user_id == current_user.id).all()
     return entities
@@ -31,9 +27,7 @@ def create_entity(
     current_user: User = Depends(get_current_user),
 ):
     new_entity = BankEntity(
-        name=entity.name,
-        color=entity.color,
-        user_id=current_user.id,
+        name=entity.name, color=entity.color, user_id=current_user.id
     )
     db.add(new_entity)
     db.commit()
@@ -43,17 +37,14 @@ def create_entity(
 
 @router.put("/{entity_id}", response_model=BankEntityResponse)
 def update_entity(
-    entity_id: UUID,
+    entity_id: int,
     entity: BankEntityUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     existing = (
         db.query(BankEntity)
-        .filter(
-            BankEntity.id == entity_id,
-            BankEntity.user_id == current_user.id,
-        )
+        .filter(BankEntity.id == entity_id, BankEntity.user_id == current_user.id)
         .first()
     )
     if not existing:
@@ -66,18 +57,15 @@ def update_entity(
     return existing
 
 
-@router.delete("/{entity_id}", status_code=204)
+@router.delete("/{entity_id}")
 def delete_entity(
-    entity_id: UUID,
+    entity_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     existing = (
         db.query(BankEntity)
-        .filter(
-            BankEntity.id == entity_id,
-            BankEntity.user_id == current_user.id,
-        )
+        .filter(BankEntity.id == entity_id, BankEntity.user_id == current_user.id)
         .first()
     )
     if not existing:
@@ -85,3 +73,4 @@ def delete_entity(
 
     db.delete(existing)
     db.commit()
+    return {"message": "Deleted successfully"}

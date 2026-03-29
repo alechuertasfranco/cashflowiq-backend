@@ -1,11 +1,11 @@
 # app/schemas/bank_account.py
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 
 
 class BankAccountBase(BaseModel):
-    name: str = Field(..., min_length=1)
+    name: str
     initial_amount: float
     currency: str
     bank_entity_id: Optional[int] = None
@@ -21,6 +21,7 @@ class BankAccountUpdate(BankAccountBase):
 
 class BankAccountResponse(BankAccountBase):
     id: int
+    user_id: int
 
     class Config:
         from_attributes = True

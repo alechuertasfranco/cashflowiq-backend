@@ -22,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade():
     # Agregar columna bank_entity_id (nullable por compatibilidad)
     op.add_column(
-        "bank_accounts", sa.Column("bank_entity_id", sa.Integer(), nullable=True)
+        "bank_accounts", sa.Column("bank_entity_id", sa.Integer(), nullable=False)
     )
     op.create_foreign_key(
         "fk_bank_accounts_bank_entity",
