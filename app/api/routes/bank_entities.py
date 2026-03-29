@@ -1,3 +1,5 @@
+# app\api\routes\bank_entities.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.models.bank_entity import BankEntity
