@@ -1,7 +1,6 @@
-# app/api/routes/bank_accounts.py
-
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+
 from app.models.bank_account import BankAccount
 from app.schemas.bank_account import (
     BankAccountCreate,
@@ -14,16 +13,21 @@ from app.models.user import User
 router = APIRouter(prefix="/bank-accounts", tags=["Bank Accounts"])
 
 
+# 📥 GET ACCOUNTS
 @router.get("", response_model=list[BankAccountResponse])
 def get_accounts(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    accounts = (
-        db.query(BankAccount).filter(BankAccount.user_id == current_user.id).all()
+    return (
+        db.query(BankAccount)
+        .options(joinedload(BankAccount.bank_entity))
+        .filter(BankAccount.user_id == current_user.id)
+        .all()
     )
-    return accounts
 
 
+# ➕ CREATE ACCOUNT (sin query extra)
 @router.post("", response_model=BankAccountResponse)
 def create_account(
     account: BankAccountCreate,
@@ -37,12 +41,16 @@ def create_account(
         bank_entity_id=account.bank_entity_id,
         user_id=current_user.id,
     )
+
     db.add(new_account)
     db.commit()
     db.refresh(new_account)
+    _ = new_account.bank_entity
+
     return new_account
 
 
+# ✏️ UPDATE ACCOUNT (sin query duplicada)
 @router.put("/{account_id}", response_model=BankAccountResponse)
 def update_account(
     account_id: int,
@@ -52,9 +60,13 @@ def update_account(
 ):
     existing = (
         db.query(BankAccount)
-        .filter(BankAccount.id == account_id, BankAccount.user_id == current_user.id)
+        .filter(
+            BankAccount.id == account_id,
+            BankAccount.user_id == current_user.id,
+        )
         .first()
     )
+
     if not existing:
         raise HTTPException(status_code=404, detail="Account not found")
 
@@ -65,9 +77,12 @@ def update_account(
 
     db.commit()
     db.refresh(existing)
+    _ = existing.bank_entity
+
     return existing
 
 
+# ❌ DELETE ACCOUNT (ya está óptimo)
 @router.delete("/{account_id}")
 def delete_account(
     account_id: int,
@@ -76,12 +91,17 @@ def delete_account(
 ):
     existing = (
         db.query(BankAccount)
-        .filter(BankAccount.id == account_id, BankAccount.user_id == current_user.id)
+        .filter(
+            BankAccount.id == account_id,
+            BankAccount.user_id == current_user.id,
+        )
         .first()
     )
+
     if not existing:
         raise HTTPException(status_code=404, detail="Account not found")
 
     db.delete(existing)
     db.commit()
+
     return {"message": "Deleted successfully"}
