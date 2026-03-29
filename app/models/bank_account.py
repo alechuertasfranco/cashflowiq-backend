@@ -14,7 +14,7 @@ class BankAccount(Base):
     currency = Column(String, nullable=False)
 
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    bank_entity_id = Column(Integer, ForeignKey("bank_entities.id"), nullable=True)
+    bank_entity_id = Column(Integer, ForeignKey("bank_entities.id"), nullable=False)
 
     user = relationship("User", backref="bank_accounts")
-    bank_entity = relationship("BankEntity", backref="bank_accounts_rel")
+    bank_entity_rel = relationship("BankEntity", backref="accounts")

@@ -14,4 +14,4 @@ class BankEntity(Base):
     color = Column(String(6), nullable=True)  # HEX sin '#'
 
     user = relationship("User", backref="bank_entities")
-    accounts = relationship("BankAccount", backref="bank_entity")
+    accounts = relationship("BankAccount")
