@@ -21,7 +21,7 @@ if config.config_file_name is not None:
 # Metadata
 target_metadata = Base.metadata
 
-# 🔥 Usar misma DB que la app
+# Usar misma DB que la app
 DATABASE_URL = os.getenv("DATABASE_URL")
 print("DATABASE_URL:", DATABASE_URL)
 print(type(DATABASE_URL))
