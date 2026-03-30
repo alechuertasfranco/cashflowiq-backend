@@ -10,9 +10,10 @@ class BankEntity(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
     name = Column(String(255), nullable=False)
     code = Column(String(4), nullable=False)
-    color = Column(String(6), nullable=True)  # HEX sin '#'
+    color = Column(String(6), nullable=True)
 
     user = relationship("User", backref="bank_entities")
     accounts = relationship("BankAccount", back_populates="bank_entity")

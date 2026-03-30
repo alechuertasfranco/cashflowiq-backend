@@ -1,5 +1,6 @@
 from logging.config import fileConfig
 import os
+from urllib.parse import quote_plus
 
 from sqlalchemy import create_engine, pool
 from alembic import context
@@ -21,10 +22,16 @@ if config.config_file_name is not None:
 # Metadata
 target_metadata = Base.metadata
 
-# Usar misma DB que la app
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Construir la URL codificando la contraseña correctamente
+_password = quote_plus(os.getenv("POSTGRES_PASSWORD", ""))
+_user = os.getenv("POSTGRES_USER", "postgres")
+_host = os.getenv("POSTGRES_HOST", "localhost")
+_port = os.getenv("POSTGRES_PORT", "5432")
+_db = os.getenv("POSTGRES_DB", "cashflowiq")
+
+DATABASE_URL = f"postgresql+psycopg2://{_user}:{_password}@{_host}:{_port}/{_db}"
+
 print("DATABASE_URL:", DATABASE_URL)
-print(type(DATABASE_URL))
 
 
 def run_migrations_offline() -> None:
@@ -43,23 +50,20 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Modo online"""
-
-
-connectable = create_engine(
-    DATABASE_URL,
-    poolclass=pool.NullPool,
-    connect_args={"client_encoding": "utf8"},
-)
-
-with connectable.connect() as connection:
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        compare_type=True,
+    connectable = create_engine(
+        DATABASE_URL,
+        poolclass=pool.NullPool,
     )
 
-    with context.begin_transaction():
-        context.run_migrations()
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
 
 
 if context.is_offline_mode():

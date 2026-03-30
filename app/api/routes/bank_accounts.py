@@ -27,7 +27,7 @@ def get_accounts(
     )
 
 
-# ➕ CREATE ACCOUNT (sin query extra)
+# ➕ CREATE ACCOUNT
 @router.post("", response_model=BankAccountResponse)
 def create_account(
     account: BankAccountCreate,
@@ -82,7 +82,7 @@ def update_account(
     return existing
 
 
-# ❌ DELETE ACCOUNT (ya está óptimo)
+# ❌ DELETE ACCOUNT
 @router.delete("/{account_id}")
 def delete_account(
     account_id: int,

@@ -6,7 +6,7 @@ from app.api.routes import auth
 from app.api.routes import bank_accounts
 from app.api.routes import bank_entities
 
-# Configuración global de logging
+# Configuracion global de logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )

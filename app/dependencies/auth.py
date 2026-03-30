@@ -8,7 +8,7 @@ security = HTTPBearer()
 
 # 📌 Obtener ruta absoluta del proyecto
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # app/
-ROOT_DIR = os.path.dirname(BASE_DIR)  # raíz del proyecto
+ROOT_DIR = os.path.dirname(BASE_DIR)  # raiz del proyecto
 
 cred_path = os.path.join(
     BASE_DIR,
@@ -20,7 +20,7 @@ cred_path = os.path.join(
 # Inicializar Firebase una sola vez
 if not firebase_admin._apps:
     if not os.path.exists(cred_path):
-        raise RuntimeError(f"No se encontró serviceAccountKey.json en: {cred_path}")
+        raise RuntimeError(f"No se encontro serviceAccountKey.json en: {cred_path}")
 
     cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred)
