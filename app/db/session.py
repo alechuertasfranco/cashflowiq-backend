@@ -7,10 +7,12 @@ from sqlalchemy.orm import sessionmaker
 
 load_dotenv()
 
-SQLALCHEMY_DATABASE_URL = os.getenv(
-    "DATABASE_URL", "postgresql://postgres:postgres@db:5432/cashflowiq"
-)
+import os
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={})
+DB_HOST = os.getenv("DB_HOST", "localhost")
+
+SQLALCHEMY_DATABASE_URL = f"postgresql://postgres:postgres@{DB_HOST}:5432/cashflowiq"
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
