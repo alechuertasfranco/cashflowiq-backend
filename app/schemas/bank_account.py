@@ -3,6 +3,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from decimal import Decimal
+from app.schemas.currency import CurrencyResponse
 from app.schemas.bank_entity import BankEntityResponse
 
 
@@ -30,10 +31,9 @@ class BankAccountResponse(BaseModel):
     initial_amount: Decimal
     currency_id: int
     currency: CurrencyResponse
-
-    user_id: int
-
+    bank_entity_id: int
     bank_entity: BankEntityResponse
+    user_id: int
 
     class Config:
         from_attributes = True
