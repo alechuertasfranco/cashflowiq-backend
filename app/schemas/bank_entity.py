@@ -1,3 +1,5 @@
+# app\schemas\bank_entity.py
+
 from pydantic import BaseModel
 from typing import Optional
 
@@ -12,8 +14,10 @@ class BankEntityCreate(BankEntityBase):
     pass
 
 
-class BankEntityUpdate(BankEntityBase):
-    pass
+class BankEntityUpdate(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    color: Optional[str] = None
 
 
 class BankEntityResponse(BankEntityBase):

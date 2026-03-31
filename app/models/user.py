@@ -1,3 +1,5 @@
+# app\models\user.py
+
 from sqlalchemy import Column, Integer, String
 from app.db.base import Base
 
