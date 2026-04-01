@@ -1,10 +1,10 @@
-# app\api\routes\curriencies.py
+# app\api\routes\currencies.py
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
 
-from app.db.session import get_db
+from app.dependencies.current_user import get_db
 from app.models.currency import Currency
 from app.schemas.currency import CurrencyResponse
 
