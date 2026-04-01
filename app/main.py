@@ -16,4 +16,5 @@ app = FastAPI()
 
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(bank_accounts.router)
+app.include_router(bank_entities.router)
 app.include_router(currencies.router)
