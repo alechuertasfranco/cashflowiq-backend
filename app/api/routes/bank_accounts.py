@@ -37,7 +37,7 @@ def create_account(
     new_account = BankAccount(
         name=account.name,
         initial_amount=account.initial_amount,
-        currency=account.currency,
+        currency_id=account.currency_id,
         bank_entity_id=account.bank_entity_id,
         user_id=current_user.id,
     )
@@ -72,7 +72,7 @@ def update_account(
 
     existing.name = account.name
     existing.initial_amount = account.initial_amount
-    existing.currency = account.currency
+    existing.currency_id = account.currency_id
     existing.bank_entity_id = account.bank_entity_id
 
     db.commit()
