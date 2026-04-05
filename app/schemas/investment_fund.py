@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel
 from typing import Optional
+from decimal import Decimal
 from app.schemas.currency import CurrencyResponse
 from app.schemas.bank_entity import BankEntityResponse
 
@@ -9,6 +10,7 @@ from app.schemas.bank_entity import BankEntityResponse
 class InvestmentFundBase(BaseModel):
     name: str
     fund_type: Optional[str] = None
+    invested_amount: Optional[Decimal] = None
     currency_id: int
     bank_entity_id: int
 
