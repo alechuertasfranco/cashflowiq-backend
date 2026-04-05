@@ -1,4 +1,4 @@
-# app\schemas\currency.py
+# app/schemas/currency.py
 
 from pydantic import BaseModel
 from decimal import Decimal

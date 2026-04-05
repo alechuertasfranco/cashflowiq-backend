@@ -6,6 +6,8 @@ from app.api.routes import auth
 from app.api.routes import bank_accounts
 from app.api.routes import bank_entities
 from app.api.routes import currencies
+from app.api.routes import credit_card
+from app.api.routes import investment_fund
 
 # Configuracion global de logging
 logging.basicConfig(
@@ -18,3 +20,5 @@ app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(bank_accounts.router)
 app.include_router(bank_entities.router)
 app.include_router(currencies.router)
+app.include_router(credit_card.router)
+app.include_router(investment_fund.router)

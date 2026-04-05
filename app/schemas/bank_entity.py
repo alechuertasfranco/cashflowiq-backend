@@ -1,4 +1,4 @@
-# app\schemas\bank_entity.py
+# app/schemas/bank_entity.py
 
 from pydantic import BaseModel
 from typing import Optional

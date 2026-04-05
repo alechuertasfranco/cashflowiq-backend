@@ -1,3 +1,5 @@
+# app\api\routes\bank_accounts.py
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
@@ -50,7 +52,7 @@ def create_account(
     return new_account
 
 
-# ✏️ UPDATE ACCOUNT (sin query duplicada)
+# ✏️ UPDATE ACCOUNT
 @router.put("/{account_id}", response_model=BankAccountResponse)
 def update_account(
     account_id: int,

@@ -1,34 +1,33 @@
-# app/schemas/bank_account.py
+# app/schemas/investment_fund.py
 
 from pydantic import BaseModel
 from typing import Optional
-from decimal import Decimal
 from app.schemas.currency import CurrencyResponse
 from app.schemas.bank_entity import BankEntityResponse
 
 
-class BankAccountBase(BaseModel):
+class InvestmentFundBase(BaseModel):
     name: str
-    initial_amount: Decimal
+    fund_type: Optional[str] = None
     currency_id: int
     bank_entity_id: int
 
 
-class BankAccountCreate(BankAccountBase):
+class InvestmentFundCreate(InvestmentFundBase):
     pass
 
 
-class BankAccountUpdate(BaseModel):
+class InvestmentFundUpdate(BaseModel):
     name: Optional[str] = None
-    initial_amount: Optional[Decimal] = None
+    fund_type: Optional[str] = None
     currency_id: Optional[int] = None
     bank_entity_id: Optional[int] = None
 
 
-class BankAccountResponse(BaseModel):
+class InvestmentFundResponse(BaseModel):
     id: int
     name: str
-    initial_amount: Decimal
+    fund_type: Optional[str]
 
     currency_id: int
     currency: CurrencyResponse
