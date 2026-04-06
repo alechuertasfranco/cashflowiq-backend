@@ -1,8 +1,8 @@
 # app/schemas/bank_account.py
 
-from pydantic import BaseModel
 from typing import Optional
 from decimal import Decimal
+from pydantic import BaseModel
 from app.schemas.currency import CurrencyResponse
 from app.schemas.bank_entity import BankEntityResponse
 

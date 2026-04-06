@@ -11,19 +11,20 @@ class InvestmentFund(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     name = Column(String, nullable=False)
-
-    # Cuánto dinero invertiste
     invested_amount = Column(Numeric(14, 2), nullable=False)
 
-    # Tipo de fondo (opcional pero útil para insights)
     fund_type = Column(String(50), nullable=True)
-    # Ej: "Mutual Fund", "ETF", "Index Fund"
 
-    # Relaciones
-    currency_id = Column(Integer, ForeignKey("currencies.id"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    bank_entity_id = Column(Integer, ForeignKey("bank_entities.id"), nullable=False)
+    currency_id = Column(
+        Integer, ForeignKey("currencies.id"), nullable=False, index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+    bank_entity_id = Column(
+        Integer, ForeignKey("bank_entities.id"), nullable=False, index=True
+    )
 
-    user = relationship("User", backref="investment_funds")
+    user = relationship("User", back_populates="investment_funds")
     bank_entity = relationship("BankEntity", back_populates="investment_funds")
     currency = relationship("Currency")

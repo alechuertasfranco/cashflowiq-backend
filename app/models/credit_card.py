@@ -12,29 +12,26 @@ class CreditCard(Base):
 
     name = Column(String, nullable=False)
 
-    # Línea de crédito
     credit_limit = Column(Numeric(12, 2), nullable=False)
 
-    # Marca: VISA, MASTERCARD, AMEX, etc.
     brand = Column(
-        Enum(
-            "VISA", "MASTERCARD", "AMEX", "DISCOVER", "DINERS", name="card_brand_enum"
-        ),
+        Enum("VISA", "MASTERCARD", "AMEX", "DISCOVER",
+             "DINERS", name="card_brand_enum"),
         nullable=False,
     )
 
-    # Ciclo de facturación
     closing_day = Column(Integer, nullable=False)
     due_day = Column(Integer, nullable=False)
 
-    # Opcional: tasa de interés
     interest_rate = Column(Numeric(5, 2), nullable=True)
 
-    # Relaciones
-    currency_id = Column(Integer, ForeignKey("currencies.id"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    bank_entity_id = Column(Integer, ForeignKey("bank_entities.id"), nullable=False)
+    currency_id = Column(Integer, ForeignKey(
+        "currencies.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"),
+                     nullable=False, index=True)
+    bank_entity_id = Column(Integer, ForeignKey(
+        "bank_entities.id"), nullable=False, index=True)
 
-    user = relationship("User", backref="credit_cards")
+    user = relationship("User", back_populates="credit_cards")
     bank_entity = relationship("BankEntity", back_populates="credit_cards")
     currency = relationship("Currency")

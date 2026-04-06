@@ -1,0 +1,73 @@
+# app/models/transaction.py
+
+from datetime import datetime
+from sqlalchemy.orm import relationship
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Numeric,
+    ForeignKey,
+    DateTime,
+    Enum,
+    Boolean,
+)
+from app.db.base import Base
+
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    type = Column(
+        Enum("INCOME", "EXPENSE", "TRANSFER", name="transaction_type_enum"),
+        nullable=False,
+    )
+
+    amount = Column(Numeric(14, 2), nullable=False)
+    description = Column(String, nullable=True)
+
+    date = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True
+    )
+
+    from_account_id = Column(
+        Integer, ForeignKey("bank_accounts.id"), nullable=True, index=True
+    )
+    from_credit_card_id = Column(
+        Integer, ForeignKey("credit_cards.id"), nullable=True, index=True
+    )
+    from_investment_fund_id = Column(
+        Integer, ForeignKey("investment_funds.id"), nullable=True, index=True
+    )
+
+    to_account_id = Column(
+        Integer, ForeignKey("bank_accounts.id"), nullable=True, index=True
+    )
+    to_credit_card_id = Column(
+        Integer, ForeignKey("credit_cards.id"), nullable=True, index=True
+    )
+    to_investment_fund_id = Column(
+        Integer, ForeignKey("investment_funds.id"), nullable=True, index=True
+    )
+
+    category_id = Column(
+        Integer, ForeignKey("categories.id"), nullable=True, index=True
+    )
+    currency_id = Column(
+        Integer, ForeignKey("currencies.id"), nullable=False, index=True
+    )
+
+    is_recurring = Column(Boolean, nullable=False, default=False)
+    is_fixed = Column(Boolean, nullable=False, default=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user = relationship("User", backref="transactions")
+    category = relationship("Category", back_populates="transactions")
+
+    from_account = relationship("BankAccount", foreign_keys=[from_account_id])
+    to_account = relationship("BankAccount", foreign_keys=[to_account_id])

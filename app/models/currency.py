@@ -10,19 +10,13 @@ class Currency(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # ISO
     code = Column(String(3), nullable=False, unique=True)
-
-    # Display
     name = Column(String(50), nullable=False)
     symbol = Column(String(5), nullable=False)
     flag = Column(String(5), nullable=True)
 
-    # Config
     decimals = Column(Integer, nullable=False, server_default="2")
 
-    # 💱 Base: PEN (recomendado)
     exchange_rate_to_base = Column(Numeric(18, 6), nullable=True)
 
-    # Relaciones
     accounts = relationship("BankAccount", back_populates="currency")
