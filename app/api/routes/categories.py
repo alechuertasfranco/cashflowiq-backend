@@ -2,16 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 
-from app.db.session import get_db
+from app.dependencies.current_user import get_current_user, get_db
 from app.models.category import Category
 from app.schemas.category import (
     CategoryCreate,
     CategoryResponse,
     CategoryUpdate,
 )
-
-# 🔐 Ajusta este import según tu sistema de auth
-from app.core.auth import get_current_user
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
