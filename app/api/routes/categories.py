@@ -18,7 +18,7 @@ router = APIRouter(prefix="/categories", tags=["Categories"])
 # 📥 GET /categories?type=INCOME
 @router.get("", response_model=List[CategoryResponse])
 def get_categories(
-    category_type: Optional[str] = Query(None),
+    category_type: Optional[str] = Query(None, alias="type"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -35,7 +35,7 @@ def get_categories(
 
 @router.get("/with-children", response_model=List[CategoryResponse])
 def get_categories_with_children(
-    category_type: Optional[str] = Query(None),
+    category_type: Optional[str] = Query(None, alias="type"),
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
