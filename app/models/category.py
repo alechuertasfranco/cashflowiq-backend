@@ -29,5 +29,5 @@ class Category(Base):
     user = relationship("User", backref="categories")
     transactions = relationship("Transaction", back_populates="category")
 
-    parent = relationship("Category", remote_side=[id])
-    children = relationship("Category", backref="parent_rel", cascade="all, delete")
+    parent = relationship("Category", remote_side=[id], back_populates="children")
+    children = relationship("Category", back_populates="parent", cascade="all, delete")
