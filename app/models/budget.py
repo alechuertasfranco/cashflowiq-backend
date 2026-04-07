@@ -1,4 +1,4 @@
-# app/models/budget.py
+"""app/models/budget.py"""
 
 from datetime import datetime
 from sqlalchemy.orm import relationship
@@ -7,6 +7,7 @@ from app.db.base import Base
 
 
 class Budget(Base):
+    """Modelo de presupuesto para un período específico."""
     __tablename__ = "budgets"
 
     id = Column(Integer, primary_key=True, index=True)

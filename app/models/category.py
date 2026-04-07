@@ -1,4 +1,4 @@
-# app/models/category.py
+"""app/models/category.py"""
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Enum
 from sqlalchemy.orm import relationship
@@ -6,6 +6,7 @@ from app.db.base import Base
 
 
 class Category(Base):
+    """Modelo de categoría para ingresos y gastos."""
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -29,3 +30,4 @@ class Category(Base):
     transactions = relationship("Transaction", back_populates="category")
 
     parent = relationship("Category", remote_side=[id])
+    children = relationship("Category", backref="parent_rel", cascade="all, delete")
