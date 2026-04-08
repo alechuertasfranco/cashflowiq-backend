@@ -31,5 +31,5 @@ class Budget(Base):
 
     # Relaciones
     currency = relationship("Currency", backref="budget", uselist=False)
-    category = relationship("Category", backref="budget", uselist=False)
+    category = relationship("Category", back_populates="budget")
     user = relationship("User", backref="budgets")

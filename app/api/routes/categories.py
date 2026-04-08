@@ -81,11 +81,15 @@ def get_categories_with_children(
     )
 
     def attach_budget(category):
+        # 🔥 normalizar budget
+        if isinstance(category.budget, list):
+            category.budget = category.budget[0] if category.budget else None
+
         if category.budget:
             key = (category.id, category.budget.currency_id)
             category.budget.spent = spent_map.get(key, 0)
 
-        for child in category.children:
+        for child in category.children or []:
             attach_budget(child)
 
     for cat in categories:

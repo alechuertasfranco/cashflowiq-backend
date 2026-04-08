@@ -40,9 +40,9 @@ class CategoryResponse(BaseModel):
     id: int
     name: str
     type: str
-    icon: Optional[str]
-    color: Optional[str]
-    parent_id: Optional[int]
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    parent_id: Optional[int] = None
     user_id: int
 
     budget: Optional[BudgetResponse] = None

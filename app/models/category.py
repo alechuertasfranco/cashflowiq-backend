@@ -7,6 +7,7 @@ from app.db.base import Base
 
 class Category(Base):
     """Modelo de categoría para ingresos y gastos."""
+
     __tablename__ = "categories"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -28,6 +29,7 @@ class Category(Base):
     # Relaciones
     user = relationship("User", backref="categories")
     transactions = relationship("Transaction", back_populates="category")
+    budget = relationship("Budget", back_populates="category", uselist=False)
 
     parent = relationship("Category", remote_side=[id], back_populates="children")
     children = relationship("Category", back_populates="parent", cascade="all, delete")
