@@ -1,44 +1,52 @@
-# app/schemas/budget.py
+"""app/schemas/budget.py"""
 
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel
 
-from app.schemas.category import CategoryResponse
+from app.schemas.currency import CurrencyResponse
 
 
 class BudgetBase(BaseModel):
+    """Base schema for budget."""
+
     amount: Decimal
+    currency_id: int
     category_id: int
-    start_date: datetime
-    end_date: datetime
 
 
 class BudgetCreate(BudgetBase):
-    pass
+    """Schema for creating a budget."""
 
 
 class BudgetUpdate(BaseModel):
+    """Schema for updating a budget."""
+
     amount: Optional[Decimal] = None
-    category_id: Optional[int] = None
-    start_date: Optional[datetime] = None
-    end_date: Optional[datetime] = None
 
 
 class BudgetResponse(BaseModel):
+    """
+    Budget response including computed spending.
+
+    'spent' representa cuánto se ha gastado en la categoría
+    en el mes actual.
+    """
+
     id: int
-
     amount: Decimal
-
     category_id: int
-    category: CategoryResponse
-
-    start_date: datetime
-    end_date: datetime
-
     user_id: int
+
+    currency_id: int
+    currency: CurrencyResponse
+
+    spent: Decimal = 0
+
     created_at: datetime
 
     class Config:
+        """Pydantic configuration for BudgetResponse."""
+
         from_attributes = True

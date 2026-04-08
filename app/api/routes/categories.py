@@ -1,11 +1,17 @@
 """app/api/routes/categories.py"""
 
+from datetime import datetime
+
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, extract
 from sqlalchemy.orm import Session, joinedload
 
 from app.dependencies.current_user import get_current_user, get_db
+
+from app.models.transaction import Transaction
 from app.models.category import Category
+from app.models.budget import Budget
 from app.schemas.category import (
     CategoryCreate,
     CategoryResponse,
@@ -39,21 +45,51 @@ def get_categories_with_children(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    """Return parent categories with their children grouped for UI consumption."""
-    query = db.query(Category).filter(
-        Category.user_id == current_user.id,
-        Category.parent_id.is_(None)
-    )
+    """
+    Return parent categories with:
+    - children
+    - budget (if exists)
+    - spent (calculated for current month)
+    """
+
+    now = datetime.utcnow()
+
+    query = db.query(Category).filter(Category.user_id == current_user.id, Category.parent_id.is_(None))
 
     if category_type:
         query = query.filter(Category.type == category_type.upper())
 
     categories = (
-        query
-        .options(joinedload(Category.children))
+        query.options(joinedload(Category.children), joinedload(Category.budget).joinedload(Budget.currency))
         .order_by(Category.id.desc())
         .all()
     )
+
+    spent_map = dict(
+        db.query(
+            Transaction.category_id,
+            Transaction.currency_id,
+            func.coalesce(func.sum(Transaction.amount), 0),
+        )
+        .filter(
+            Transaction.user_id == current_user.id,
+            extract("month", Transaction.date) == now.month,
+            extract("year", Transaction.date) == now.year,
+        )
+        .group_by(Transaction.category_id, Transaction.currency_id)
+        .all()
+    )
+
+    def attach_budget(category):
+        if category.budget:
+            key = (category.id, category.budget.currency_id)
+            category.budget.spent = spent_map.get(key, 0)
+
+        for child in category.children:
+            attach_budget(child)
+
+    for cat in categories:
+        attach_budget(cat)
 
     return categories
 
@@ -95,11 +131,7 @@ def update_category(
     current_user=Depends(get_current_user),
 ):
     """Update an existing category for the current user."""
-    category = (
-        db.query(Category)
-        .filter(Category.id == category_id, Category.user_id == current_user.id)
-        .first()
-    )
+    category = db.query(Category).filter(Category.id == category_id, Category.user_id == current_user.id).first()
 
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -109,8 +141,7 @@ def update_category(
 
     if data.type is not None:
         if data.type.upper() not in ["INCOME", "EXPENSE"]:
-            raise HTTPException(
-                status_code=400, detail="Invalid category type")
+            raise HTTPException(status_code=400, detail="Invalid category type")
         category.type = data.type.upper()
 
     if data.icon is not None:
@@ -136,11 +167,7 @@ def delete_category(
     current_user=Depends(get_current_user),
 ):
     """Delete a category for the current user."""
-    category = (
-        db.query(Category)
-        .filter(Category.id == category_id, Category.user_id == current_user.id)
-        .first()
-    )
+    category = db.query(Category).filter(Category.id == category_id, Category.user_id == current_user.id).first()
 
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")

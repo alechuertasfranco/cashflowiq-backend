@@ -31,10 +31,9 @@ class RecurringTransaction(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     account_id = Column(Integer, ForeignKey("bank_accounts.id"), nullable=True)
-    credit_card_id = Column(Integer, ForeignKey(
-        "credit_cards.id"), nullable=True)
+    credit_card_id = Column(Integer, ForeignKey("credit_cards.id"), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relaciones
     category = relationship("Category")

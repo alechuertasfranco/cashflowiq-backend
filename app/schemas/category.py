@@ -1,12 +1,14 @@
 """app/schemas/category.py"""
 
-from typing import List
-from typing import Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
+
+from app.schemas.budget import BudgetResponse
 
 
 class CategoryBase(BaseModel):
     """Base schema for category creation and update."""
+
     name: str
     type: str  # INCOME | EXPENSE
     icon: Optional[str] = None
@@ -19,7 +21,8 @@ class CategoryCreate(CategoryBase):
 
 
 class CategoryUpdate(BaseModel):
-    """Schema for updating a new category."""
+    """Schema for updating a category."""
+
     name: Optional[str] = None
     type: Optional[str] = None
     icon: Optional[str] = None
@@ -28,7 +31,12 @@ class CategoryUpdate(BaseModel):
 
 
 class CategoryResponse(BaseModel):
-    """Category response."""
+    """
+    Category response enriched with:
+    - children (subcategorías)
+    - budget (presupuesto mensual)
+    """
+
     id: int
     name: str
     type: str
@@ -37,10 +45,13 @@ class CategoryResponse(BaseModel):
     parent_id: Optional[int]
     user_id: int
 
+    budget: Optional[BudgetResponse] = None
+
     children: List["CategoryResponse"] = Field(default_factory=list)
 
     class Config:
-        """"CategoryResponse - Config"""
+        """Pydantic configuration for CategoryResponse."""
+
         from_attributes = True
 
 
