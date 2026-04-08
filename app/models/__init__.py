@@ -1,4 +1,4 @@
-# app/models/__init__.py
+"""app/models/__init__.py"""
 
 from app.models.account_monthly_balance import AccountMonthlyBalance
 from app.models.bank_account import BankAccount
