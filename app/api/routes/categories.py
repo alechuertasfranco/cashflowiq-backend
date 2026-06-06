@@ -65,8 +65,9 @@ def get_categories_with_children(
         .all()
     )
 
-    spent_map = dict(
-        db.query(
+    spent_map = {
+        (row[0], row[1]): row[2]
+        for row in db.query(
             Transaction.category_id,
             Transaction.currency_id,
             func.coalesce(func.sum(Transaction.amount), 0),
@@ -78,7 +79,7 @@ def get_categories_with_children(
         )
         .group_by(Transaction.category_id, Transaction.currency_id)
         .all()
-    )
+    }
 
     def attach_budget(category):
         # 🔥 normalizar budget
