@@ -71,3 +71,10 @@ class Transaction(Base):
 
     from_account = relationship("BankAccount", foreign_keys=[from_account_id])
     to_account = relationship("BankAccount", foreign_keys=[to_account_id])
+
+    @property
+    def account_id(self):
+        """Primary account FK: destination for INCOME, source for EXPENSE/TRANSFER."""
+        if self.type == "INCOME":
+            return self.to_account_id
+        return self.from_account_id
