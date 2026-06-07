@@ -81,7 +81,7 @@ def get_cashflow_report(
                 func.sum(
                     case(
                         (
-                            (Transaction.type == "EXPENSE") & (Transaction.is_fixed == True),  # noqa: E712,C0121 pylint: disable=singleton-comparison
+                            (Transaction.type == "EXPENSE") & (Transaction.is_fixed == True),  # noqa: E712  # pylint: disable=singleton-comparison
                             Transaction.amount,
                         ),
                         else_=Decimal("0"),
@@ -93,7 +93,7 @@ def get_cashflow_report(
                 func.sum(
                     case(
                         (
-                            (Transaction.type == "EXPENSE") & (Transaction.is_fixed == False),  # noqa: E712,C0121 pylint: disable=singleton-comparison
+                            (Transaction.type == "EXPENSE") & (Transaction.is_fixed == False),  # noqa: E712  # pylint: disable=singleton-comparison
                             Transaction.amount,
                         ),
                         else_=Decimal("0"),
