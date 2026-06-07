@@ -76,9 +76,19 @@ def get_budgets(
         .all()
     )
 
+    # Pre-load category type for each budgeted category
+    cat_ids = [b.category_id for b in budgets]
+    category_type_map = {
+        c.id: c.type
+        for c in db.query(Category.id, Category.type)
+        .filter(Category.id.in_(cat_ids))
+        .all()
+    }
+
     results = []
 
     for b in budgets:
+        tx_type = category_type_map.get(b.category_id, "EXPENSE")
         child_ids = [
             c.id
             for c in db.query(Category.id)
@@ -92,6 +102,7 @@ def get_budgets(
                 Transaction.category_id.in_(all_category_ids),
                 Transaction.user_id == current_user.id,
                 Transaction.currency_id == b.currency_id,
+                Transaction.type == tx_type,
                 extract("month", Transaction.date) == now.month,
                 extract("year", Transaction.date) == now.year,
             )

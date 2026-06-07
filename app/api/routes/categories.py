@@ -71,29 +71,34 @@ def get_categories_with_children(
         .all()
     )
 
-    spent_map = {
-        row[0]: row[1]
-        for row in db.query(
-            Transaction.category_id,
-            func.coalesce(func.sum(Transaction.amount), 0),
-        )
-        .filter(
-            Transaction.user_id == current_user.id,
-            Transaction.type == "EXPENSE",
-            Transaction.category_id.isnot(None),
-            extract("month", Transaction.date) == now.month,
-            extract("year", Transaction.date) == now.year,
-        )
-        .group_by(Transaction.category_id)
-        .all()
-    }
+    def _build_spent_map(tx_type: str) -> dict:
+        return {
+            row[0]: row[1]
+            for row in db.query(
+                Transaction.category_id,
+                func.coalesce(func.sum(Transaction.amount), 0),
+            )
+            .filter(
+                Transaction.user_id == current_user.id,
+                Transaction.type == tx_type,
+                Transaction.category_id.isnot(None),
+                extract("month", Transaction.date) == now.month,
+                extract("year", Transaction.date) == now.year,
+            )
+            .group_by(Transaction.category_id)
+            .all()
+        }
+
+    expense_spent_map = _build_spent_map("EXPENSE")
+    income_spent_map = _build_spent_map("INCOME")
 
     def attach_budget(category):
         if isinstance(category.budget, list):
             category.budget = category.budget[0] if category.budget else None
 
         if category.budget:
-            # Include spending from all child categories
+            # Use the spent map matching the category type
+            spent_map = income_spent_map if category.type == "INCOME" else expense_spent_map
             child_ids = [child.id for child in (category.children or [])]
             all_ids = [category.id] + child_ids
             category.budget.spent = sum(spent_map.get(cid, 0) for cid in all_ids)
