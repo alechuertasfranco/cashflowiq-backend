@@ -140,7 +140,7 @@ def get_cashflow_report(
 def get_by_category_report(
     year: Optional[int] = Query(default=None),
     month: Optional[int] = Query(default=None),
-    tx_type: Optional[str] = Query(default="EXPENSE", alias="type"),  # pylint: disable=redefined-builtin
+    kind: Optional[str] = Query(default="EXPENSE", alias="type"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -156,7 +156,7 @@ def get_by_category_report(
     if month is None:
         month = now.month
 
-    tx_type = (tx_type or "EXPENSE").upper()
+    tx_type = (kind or "EXPENSE").upper()
     month_start, month_end = _month_bounds(year, month)
 
     rows = (

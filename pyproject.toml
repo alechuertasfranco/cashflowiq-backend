@@ -7,5 +7,18 @@ line_length = 120
 [tool.flake8]
 max-line-length = 120
 
+[tool.pylint.master]
+init-hook = 'import sys; sys.path.insert(0, ".")'
+
+[tool.pylint.messages_control]
+disable = [
+    "C0114",  # missing-module-docstring
+    "C0115",  # missing-class-docstring
+    "C0116",  # missing-function-docstring
+    "R0903",  # too-few-public-methods (Pydantic Config inner classes)
+    "R0801",  # duplicate-code
+    "C0411",  # wrong-import-order (pre-existing in schema files)
+]
+
 [tool.pylint.format]
 max-line-length = 150
