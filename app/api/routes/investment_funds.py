@@ -18,6 +18,8 @@ router = APIRouter(prefix="/investment-funds", tags=["Investment Funds"])
 # 📥 GET FUNDS
 @router.get("", response_model=list[InvestmentFundResponse])
 def get_funds(
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -28,6 +30,8 @@ def get_funds(
             joinedload(InvestmentFund.currency),
         )
         .filter(InvestmentFund.user_id == current_user.id)
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 

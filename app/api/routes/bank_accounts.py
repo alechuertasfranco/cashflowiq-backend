@@ -1,9 +1,11 @@
 # app\api\routes\bank_accounts.py
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.bank_account import BankAccount
+from app.models.transaction import Transaction
 from app.schemas.bank_account import (
     BankAccountCreate,
     BankAccountUpdate,
@@ -15,21 +17,77 @@ from app.models.user import User
 router = APIRouter(prefix="/bank-accounts", tags=["Bank Accounts"])
 
 
-# 📥 GET ACCOUNTS
-@router.get("", response_model=list[BankAccountResponse])
-def get_accounts(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    return (
-        db.query(BankAccount)
-        .options(joinedload(BankAccount.bank_entity))
-        .filter(BankAccount.user_id == current_user.id)
-        .all()
+def _compute_balance(db: Session, account: BankAccount) -> float:
+    """Compute current balance = initial_amount + inflows - outflows."""
+    inflows = (
+        db.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(Transaction.to_account_id == account.id)
+        .scalar()
+    )
+    outflows = (
+        db.query(func.coalesce(func.sum(Transaction.amount), 0))
+        .filter(Transaction.from_account_id == account.id)
+        .scalar()
+    )
+    return float(account.initial_amount) + float(inflows) - float(outflows)
+
+
+def _to_response(db: Session, account: BankAccount) -> BankAccountResponse:
+    """Convert ORM object to response schema with computed balance."""
+    return BankAccountResponse(
+        id=account.id,
+        name=account.name,
+        initial_amount=account.initial_amount,
+        current_balance=_compute_balance(db, account),
+        currency_id=account.currency_id,
+        currency=account.currency,
+        bank_entity_id=account.bank_entity_id,
+        bank_entity=account.bank_entity,
+        user_id=account.user_id,
     )
 
 
-# ➕ CREATE ACCOUNT
+# GET ACCOUNTS
+@router.get("", response_model=list[BankAccountResponse])
+def get_accounts(
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    accounts = (
+        db.query(BankAccount)
+        .options(joinedload(BankAccount.bank_entity), joinedload(BankAccount.currency))
+        .filter(BankAccount.user_id == current_user.id)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return [_to_response(db, a) for a in accounts]
+
+
+# GET SINGLE ACCOUNT
+@router.get("/{account_id}", response_model=BankAccountResponse)
+def get_account(
+    account_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    account = (
+        db.query(BankAccount)
+        .options(joinedload(BankAccount.bank_entity), joinedload(BankAccount.currency))
+        .filter(
+            BankAccount.id == account_id,
+            BankAccount.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return _to_response(db, account)
+
+
+# CREATE ACCOUNT
 @router.post("", response_model=BankAccountResponse)
 def create_account(
     account: BankAccountCreate,
@@ -48,11 +106,12 @@ def create_account(
     db.commit()
     db.refresh(new_account)
     _ = new_account.bank_entity
+    _ = new_account.currency
 
-    return new_account
+    return _to_response(db, new_account)
 
 
-# ✏️ UPDATE ACCOUNT
+# UPDATE ACCOUNT
 @router.put("/{account_id}", response_model=BankAccountResponse)
 def update_account(
     account_id: int,
@@ -72,19 +131,24 @@ def update_account(
     if not existing:
         raise HTTPException(status_code=404, detail="Account not found")
 
-    existing.name = account.name
-    existing.initial_amount = account.initial_amount
-    existing.currency_id = account.currency_id
-    existing.bank_entity_id = account.bank_entity_id
+    if account.name is not None:
+        existing.name = account.name
+    if account.initial_amount is not None:
+        existing.initial_amount = account.initial_amount
+    if account.currency_id is not None:
+        existing.currency_id = account.currency_id
+    if account.bank_entity_id is not None:
+        existing.bank_entity_id = account.bank_entity_id
 
     db.commit()
     db.refresh(existing)
     _ = existing.bank_entity
+    _ = existing.currency
 
-    return existing
+    return _to_response(db, existing)
 
 
-# ❌ DELETE ACCOUNT
+# DELETE ACCOUNT
 @router.delete("/{account_id}")
 def delete_account(
     account_id: int,

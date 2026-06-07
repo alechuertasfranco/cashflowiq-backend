@@ -36,6 +36,8 @@ def list_transactions(
     to_date: Optional[str] = None,
     category_id: Optional[int] = None,
     account_id: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -59,7 +61,7 @@ def list_transactions(
             | (Transaction.to_account_id == account_id)
         )
 
-    return query.order_by(Transaction.date.desc()).all()
+    return query.order_by(Transaction.date.desc()).offset(offset).limit(limit).all()
 
 
 # ➕ CREATE TRANSACTION

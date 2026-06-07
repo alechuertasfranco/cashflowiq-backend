@@ -34,6 +34,8 @@ def _get_or_404(db: Session, rule_id: int, user_id: int) -> RecurringTransaction
 # GET /recurring-transactions
 @router.get("", response_model=list[RecurringTransactionResponse])
 def list_recurring_transactions(
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -42,6 +44,8 @@ def list_recurring_transactions(
         .options(joinedload(RecurringTransaction.category))
         .filter(RecurringTransaction.user_id == current_user.id)
         .order_by(RecurringTransaction.next_execution_date.asc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 

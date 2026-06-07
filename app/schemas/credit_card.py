@@ -41,6 +41,7 @@ class CreditCardResponse(BaseModel):
     closing_day: int
     due_day: int
     interest_rate: Optional[Decimal]
+    used_amount: float
 
     currency_id: int
     currency: CurrencyResponse

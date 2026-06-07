@@ -141,6 +141,8 @@ def get_by_category_report(
     year: Optional[int] = Query(default=None),
     month: Optional[int] = Query(default=None),
     kind: Optional[str] = Query(default="EXPENSE", alias="type"),
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -175,6 +177,8 @@ def get_by_category_report(
         )
         .group_by(Transaction.category_id, Category.name)
         .order_by(func.sum(Transaction.amount).desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
 
@@ -200,6 +204,8 @@ def get_by_category_report(
 def get_by_entity_report(  # pylint: disable=too-many-locals
     year: Optional[int] = Query(default=None),
     month: Optional[int] = Query(default=None),
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -288,4 +294,4 @@ def get_by_entity_report(  # pylint: disable=too-many-locals
 
     # Sort by net descending for a consistent, useful ordering.
     results.sort(key=lambda r: r.net, reverse=True)
-    return results
+    return results[offset: offset + limit]

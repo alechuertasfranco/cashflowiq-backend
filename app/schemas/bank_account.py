@@ -29,6 +29,7 @@ class BankAccountResponse(BaseModel):
     id: int
     name: str
     initial_amount: Decimal
+    current_balance: float
 
     currency_id: int
     currency: CurrencyResponse

@@ -55,6 +55,8 @@ def create_or_update_budget(
 
 @router.get("", response_model=list[BudgetResponse])
 def get_budgets(
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -65,7 +67,13 @@ def get_budgets(
 
     now = datetime.utcnow()
 
-    budgets = db.query(Budget).filter(Budget.user_id == current_user.id).all()
+    budgets = (
+        db.query(Budget)
+        .filter(Budget.user_id == current_user.id)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
 
     results = []
 

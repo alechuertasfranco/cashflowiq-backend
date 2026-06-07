@@ -16,9 +16,18 @@ router = APIRouter(prefix="/bank-entities", tags=["Bank Entities"])
 
 @router.get("", response_model=list[BankEntityResponse])
 def get_entities(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    entities = db.query(BankEntity).filter(BankEntity.user_id == current_user.id).all()
+    entities = (
+        db.query(BankEntity)
+        .filter(BankEntity.user_id == current_user.id)
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
     return entities
 
 
