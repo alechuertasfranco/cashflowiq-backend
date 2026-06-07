@@ -14,5 +14,6 @@ class Contact(Base):
 
     name = Column(String, nullable=False)
     email = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
 
     user = relationship("User", backref="contacts")

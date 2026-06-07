@@ -17,6 +17,8 @@ from app.api.routes import (
     dashboard,
     reports,
     recurring_transactions,
+    contacts,
+    transaction_splits,
 )
 from app.services.recurring_executor import start_daily_scheduler
 
@@ -68,3 +70,5 @@ app.include_router(transactions.router)
 app.include_router(dashboard.router)
 app.include_router(reports.router)
 app.include_router(recurring_transactions.router)
+app.include_router(contacts.router)
+app.include_router(transaction_splits.router)

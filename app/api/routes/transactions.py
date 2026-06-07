@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.transaction import Transaction
 from app.models.bank_account import BankAccount
 from app.models.credit_card import CreditCard
+from app.models.transaction_split import TransactionSplit
 from app.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionResponse
 from app.dependencies.current_user import get_current_user, get_db
 from app.models.user import User
@@ -138,6 +139,19 @@ def create_transaction(
     db.add(tx)
     db.commit()
     db.refresh(tx)
+
+    # Create split rows if provided.
+    if data.splits:
+        for item in data.splits:
+            split = TransactionSplit(
+                transaction_id=tx.id,
+                contact_id=item.contact_id,
+                amount=item.amount,
+                is_settled=False,
+            )
+            db.add(split)
+        db.commit()
+
     _ = tx.category
 
     return tx

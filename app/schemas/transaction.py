@@ -1,6 +1,6 @@
 # app/schemas/transaction.py
 
-from typing import Optional
+from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
 from pydantic import BaseModel
@@ -14,6 +14,11 @@ class TransactionCategoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class SplitItemCreate(BaseModel):
+    contact_id: int
+    amount: Decimal
 
 
 class TransactionCreate(BaseModel):
@@ -34,6 +39,9 @@ class TransactionCreate(BaseModel):
 
     is_recurring: bool = False
     is_fixed: bool = False
+
+    # Optional split expense items
+    splits: Optional[List[SplitItemCreate]] = None
 
 
 class TransactionUpdate(BaseModel):

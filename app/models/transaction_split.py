@@ -1,6 +1,7 @@
 # app/models/transaction_split.py
 
-from sqlalchemy import Column, Integer, Numeric, ForeignKey, Boolean
+from datetime import datetime
+from sqlalchemy import Column, Integer, Numeric, ForeignKey, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
@@ -20,6 +21,8 @@ class TransactionSplit(Base):
 
     # Si ya te pagó
     is_settled = Column(Boolean, default=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     transaction = relationship("Transaction", backref="splits")
     contact = relationship("Contact")
