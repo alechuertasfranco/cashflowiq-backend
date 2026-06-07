@@ -16,13 +16,14 @@ class InvestmentFundBase(BaseModel):
 
 
 class InvestmentFundCreate(InvestmentFundBase):
-    pass
+    current_value: Optional[float] = None
 
 
 class InvestmentFundUpdate(BaseModel):
     name: Optional[str] = None
     fund_type: Optional[str] = None
     invested_amount: Optional[Decimal] = None
+    current_value: Optional[float] = None
     currency_id: Optional[int] = None
     bank_entity_id: Optional[int] = None
 
@@ -32,6 +33,7 @@ class InvestmentFundResponse(BaseModel):
     name: str
     fund_type: Optional[str]
     invested_amount: Optional[Decimal]
+    current_value: Optional[float] = None
 
     currency_id: int
     currency: CurrencyResponse

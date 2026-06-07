@@ -47,6 +47,7 @@ def create_fund(
         name=fund.name,
         fund_type=fund.fund_type,
         invested_amount=fund.invested_amount,
+        current_value=fund.current_value,
         currency_id=fund.currency_id,
         bank_entity_id=fund.bank_entity_id,
         user_id=current_user.id,
@@ -85,6 +86,7 @@ def update_fund(
     existing.name = fund.name
     existing.fund_type = fund.fund_type
     existing.invested_amount = fund.invested_amount
+    existing.current_value = fund.current_value
     existing.currency_id = fund.currency_id
     existing.bank_entity_id = fund.bank_entity_id
 

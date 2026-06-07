@@ -1,6 +1,6 @@
 # app/models/investment_fund.py
 
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey
+from sqlalchemy import Column, Integer, String, Numeric, Float, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.base import Base
 
@@ -14,6 +14,7 @@ class InvestmentFund(Base):
     invested_amount = Column(Numeric(14, 2), nullable=False)
 
     fund_type = Column(String(50), nullable=True)
+    current_value = Column(Float, nullable=True)
 
     currency_id = Column(
         Integer, ForeignKey("currencies.id"), nullable=False, index=True
