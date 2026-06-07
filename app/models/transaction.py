@@ -73,6 +73,7 @@ class Transaction(Base):
 
     user = relationship("User", backref="transactions")
     category = relationship("Category", back_populates="transactions")
+    currency = relationship("Currency")
 
     from_account = relationship("BankAccount", foreign_keys=[from_account_id])
     to_account = relationship("BankAccount", foreign_keys=[to_account_id])

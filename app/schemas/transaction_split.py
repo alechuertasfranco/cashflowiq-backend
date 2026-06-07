@@ -22,6 +22,8 @@ class TransactionSplitResponse(BaseModel):
     amount: Decimal
     is_settled: bool
     created_at: Optional[datetime] = None
+    currency_code: Optional[str] = None
+    currency_symbol: Optional[str] = None
 
     class Config:
         from_attributes = True

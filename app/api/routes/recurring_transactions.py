@@ -16,10 +16,22 @@ from app.services.recurring_executor import run_due_recurring_transactions
 router = APIRouter(prefix="/recurring-transactions", tags=["Recurring Transactions"])
 
 
+def _enrich_recurring(rule: RecurringTransaction) -> dict:
+    """Convert a RecurringTransaction ORM object to a dict and inject currency fields."""
+    data = RecurringTransactionResponse.model_validate(rule).model_dump()
+    if rule.currency is not None:
+        data["currency_code"] = rule.currency.code
+        data["currency_symbol"] = rule.currency.symbol
+    return data
+
+
 def _get_or_404(db: Session, rule_id: int, user_id: int) -> RecurringTransaction:
     rule = (
         db.query(RecurringTransaction)
-        .options(joinedload(RecurringTransaction.category))
+        .options(
+            joinedload(RecurringTransaction.category),
+            joinedload(RecurringTransaction.currency),
+        )
         .filter(
             RecurringTransaction.id == rule_id,
             RecurringTransaction.user_id == user_id,
@@ -39,15 +51,19 @@ def list_recurring_transactions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return (
+    rules = (
         db.query(RecurringTransaction)
-        .options(joinedload(RecurringTransaction.category))
+        .options(
+            joinedload(RecurringTransaction.category),
+            joinedload(RecurringTransaction.currency),
+        )
         .filter(RecurringTransaction.user_id == current_user.id)
         .order_by(RecurringTransaction.next_execution_date.asc())
         .offset(offset)
         .limit(limit)
         .all()
     )
+    return [_enrich_recurring(r) for r in rules]
 
 
 # POST /recurring-transactions
@@ -86,13 +102,12 @@ def create_recurring_transaction(
     db.add(rule)
     db.commit()
     db.refresh(rule)
-    _ = rule.category
 
     # Immediately process the rule if it is already due
     run_due_recurring_transactions(db)
 
     # Re-fetch to reflect any date advancement that just happened
-    return _get_or_404(db, rule.id, current_user.id)
+    return _enrich_recurring(_get_or_404(db, rule.id, current_user.id))
 
 
 # PUT /recurring-transactions/{id}
@@ -138,10 +153,9 @@ def update_recurring_transaction(
         rule.currency_id = data.currency_id
 
     db.commit()
-    db.refresh(rule)
-    _ = rule.category
 
-    return rule
+    # Re-fetch with all eager loads to populate currency.
+    return _enrich_recurring(_get_or_404(db, rule_id, current_user.id))
 
 
 # DELETE /recurring-transactions/{id}

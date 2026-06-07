@@ -49,6 +49,8 @@ class RecurringTransactionResponse(BaseModel):
     account_id: Optional[int] = None
     credit_card_id: Optional[int] = None
     currency_id: Optional[int] = None
+    currency_code: Optional[str] = None
+    currency_symbol: Optional[str] = None
     user_id: int
     created_at: datetime
 

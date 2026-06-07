@@ -20,6 +20,16 @@ from app.models.user import User
 router = APIRouter(tags=["Transaction Splits"])
 
 
+def _enrich_split(split: TransactionSplit) -> dict:
+    """Convert a TransactionSplit ORM object to a dict and inject currency fields."""
+    data = TransactionSplitResponse.model_validate(split).model_dump()
+    tx = split.transaction
+    if tx is not None and tx.currency is not None:
+        data["currency_code"] = tx.currency.code
+        data["currency_symbol"] = tx.currency.symbol
+    return data
+
+
 # ---------------------------------------------------------------------------
 # GET /transaction-splits
 # ---------------------------------------------------------------------------
@@ -40,19 +50,23 @@ def list_splits(
     query = (
         db.query(TransactionSplit)
         .join(Transaction, TransactionSplit.transaction_id == Transaction.id)
-        .options(joinedload(TransactionSplit.contact))
+        .options(
+            joinedload(TransactionSplit.contact),
+            joinedload(TransactionSplit.transaction).joinedload(Transaction.currency),
+        )
         .filter(Transaction.user_id == current_user.id)
     )
 
     if settled is not None:
         query = query.filter(TransactionSplit.is_settled == settled)
 
-    return (
+    splits = (
         query.order_by(TransactionSplit.created_at.desc())
         .offset(offset)
         .limit(limit)
         .all()
     )
+    return [_enrich_split(s) for s in splits]
 
 
 # ---------------------------------------------------------------------------

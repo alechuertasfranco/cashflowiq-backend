@@ -73,6 +73,8 @@ class TransactionResponse(BaseModel):
     category: Optional[TransactionCategoryResponse] = None
 
     currency_id: int
+    currency_code: str = ""
+    currency_symbol: str = ""
 
     is_recurring: bool
     is_fixed: bool

@@ -17,10 +17,19 @@ from app.models.user import User
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
+def _enrich(tx: Transaction) -> dict:
+    """Convert a Transaction ORM object to a dict and inject currency_code/symbol."""
+    data = TransactionResponse.model_validate(tx).model_dump()
+    if tx.currency is not None:
+        data["currency_code"] = tx.currency.code
+        data["currency_symbol"] = tx.currency.symbol
+    return data
+
+
 def _get_or_404(db: Session, tx_id: int, user_id: int) -> Transaction:
     tx = (
         db.query(Transaction)
-        .options(joinedload(Transaction.category))
+        .options(joinedload(Transaction.category), joinedload(Transaction.currency))
         .filter(Transaction.id == tx_id, Transaction.user_id == user_id)
         .first()
     )
@@ -44,7 +53,7 @@ def list_transactions(
 ):
     query = (
         db.query(Transaction)
-        .options(joinedload(Transaction.category))
+        .options(joinedload(Transaction.category), joinedload(Transaction.currency))
         .filter(Transaction.user_id == current_user.id)
     )
 
@@ -62,7 +71,8 @@ def list_transactions(
             | (Transaction.to_account_id == account_id)
         )
 
-    return query.order_by(Transaction.date.desc()).offset(offset).limit(limit).all()
+    txs = query.order_by(Transaction.date.desc()).offset(offset).limit(limit).all()
+    return [_enrich(tx) for tx in txs]
 
 
 # ➕ CREATE TRANSACTION
@@ -152,9 +162,15 @@ def create_transaction(
             db.add(split)
         db.commit()
 
-    _ = tx.category
+    # Eager-load relationships needed for the response.
+    tx = (
+        db.query(Transaction)
+        .options(joinedload(Transaction.category), joinedload(Transaction.currency))
+        .filter(Transaction.id == tx.id)
+        .first()
+    )
 
-    return tx
+    return _enrich(tx)
 
 
 # 🔍 GET SINGLE TRANSACTION
@@ -164,7 +180,7 @@ def get_transaction(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return _get_or_404(db, tx_id, current_user.id)
+    return _enrich(_get_or_404(db, tx_id, current_user.id))
 
 
 # ✏️ UPDATE TRANSACTION
@@ -204,9 +220,16 @@ def update_transaction(
 
     db.commit()
     db.refresh(tx)
-    _ = tx.category
 
-    return tx
+    # Re-fetch with eager loads so currency is populated.
+    tx = (
+        db.query(Transaction)
+        .options(joinedload(Transaction.category), joinedload(Transaction.currency))
+        .filter(Transaction.id == tx.id)
+        .first()
+    )
+
+    return _enrich(tx)
 
 
 # ❌ DELETE TRANSACTION
