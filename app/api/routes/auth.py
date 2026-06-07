@@ -1,6 +1,5 @@
 # app/api/routes/auth.py
 
-import logging
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 

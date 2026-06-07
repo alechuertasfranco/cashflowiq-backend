@@ -81,7 +81,7 @@ def get_cashflow_report(
                 func.sum(
                     case(
                         (
-                            (Transaction.type == "EXPENSE") & (Transaction.is_fixed == True),  # noqa: E712
+                            (Transaction.type == "EXPENSE") & (Transaction.is_fixed == True),  # noqa: E712,C0121 pylint: disable=singleton-comparison
                             Transaction.amount,
                         ),
                         else_=Decimal("0"),
@@ -93,7 +93,7 @@ def get_cashflow_report(
                 func.sum(
                     case(
                         (
-                            (Transaction.type == "EXPENSE") & (Transaction.is_fixed == False),  # noqa: E712
+                            (Transaction.type == "EXPENSE") & (Transaction.is_fixed == False),  # noqa: E712,C0121 pylint: disable=singleton-comparison
                             Transaction.amount,
                         ),
                         else_=Decimal("0"),
@@ -140,7 +140,7 @@ def get_cashflow_report(
 def get_by_category_report(
     year: Optional[int] = Query(default=None),
     month: Optional[int] = Query(default=None),
-    type: Optional[str] = Query(default="EXPENSE"),
+    tx_type: Optional[str] = Query(default="EXPENSE", alias="type"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -156,7 +156,7 @@ def get_by_category_report(
     if month is None:
         month = now.month
 
-    tx_type = (type or "EXPENSE").upper()
+    tx_type = (tx_type or "EXPENSE").upper()
     month_start, month_end = _month_bounds(year, month)
 
     rows = (
@@ -197,7 +197,7 @@ def get_by_category_report(
 
 
 @router.get("/by-entity", response_model=list[EntityReport])
-def get_by_entity_report(
+def get_by_entity_report(  # pylint: disable=too-many-locals
     year: Optional[int] = Query(default=None),
     month: Optional[int] = Query(default=None),
     db: Session = Depends(get_db),
@@ -221,8 +221,8 @@ def get_by_entity_report(
     month_start, month_end = _month_bounds(year, month)
 
     # Subquery alias helpers — we need BankAccount twice (to/from).
-    ToAccount = BankAccount.__table__.alias("to_acct")
-    FromAccount = BankAccount.__table__.alias("from_acct")
+    to_account_alias = BankAccount.__table__.alias("to_acct")
+    from_account_alias = BankAccount.__table__.alias("from_acct")
 
     # --- Credits: INCOME transactions where to_account → bank entity ---
     credits_rows = (
@@ -231,8 +231,8 @@ def get_by_entity_report(
             BankEntity.name.label("entity_name"),
             func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total_income"),
         )
-        .join(ToAccount, ToAccount.c.id == Transaction.to_account_id)
-        .join(BankEntity, BankEntity.id == ToAccount.c.bank_entity_id)
+        .join(to_account_alias, to_account_alias.c.id == Transaction.to_account_id)
+        .join(BankEntity, BankEntity.id == to_account_alias.c.bank_entity_id)
         .filter(
             Transaction.user_id == current_user.id,
             Transaction.type == "INCOME",
@@ -252,8 +252,8 @@ def get_by_entity_report(
             BankEntity.name.label("entity_name"),
             func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total_expense"),
         )
-        .join(FromAccount, FromAccount.c.id == Transaction.from_account_id)
-        .join(BankEntity, BankEntity.id == FromAccount.c.bank_entity_id)
+        .join(from_account_alias, from_account_alias.c.id == Transaction.from_account_id)
+        .join(BankEntity, BankEntity.id == from_account_alias.c.bank_entity_id)
         .filter(
             Transaction.user_id == current_user.id,
             Transaction.type.in_(["EXPENSE", "TRANSFER"]),

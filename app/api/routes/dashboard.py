@@ -90,7 +90,7 @@ def get_dashboard_summary(
         .group_by(Transaction.to_account_id)
         .all()
     )
-    credits = {row.account_id: row.total for row in credits_rows}
+    credits_map = {row.account_id: row.total for row in credits_rows}
 
     # Aggregate debits (EXPENSE or TRANSFER from each account) across all time.
     debits_rows = (
@@ -106,7 +106,7 @@ def get_dashboard_summary(
         .group_by(Transaction.from_account_id)
         .all()
     )
-    debits = {row.account_id: row.total for row in debits_rows}
+    debits_map = {row.account_id: row.total for row in debits_rows}
 
     account_balances = [
         AccountBalance(
@@ -115,8 +115,8 @@ def get_dashboard_summary(
             currency_code=account.currency.code,
             balance=(
                 account.initial_amount
-                + credits.get(account.id, Decimal("0"))
-                - debits.get(account.id, Decimal("0"))
+                + credits_map.get(account.id, Decimal("0"))
+                - debits_map.get(account.id, Decimal("0"))
             ),
         )
         for account in accounts
