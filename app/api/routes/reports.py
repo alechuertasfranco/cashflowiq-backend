@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, case
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.dependencies.current_user import get_current_user, get_db
 from app.models.bank_account import BankAccount
@@ -178,15 +178,20 @@ def get_by_category_report(
     tx_type = (kind or "EXPENSE").upper()
     month_start, month_end = _month_bounds(year, month)
 
+    ParentCategory = aliased(Category)
+
     rows = (
         db.query(
             Transaction.category_id.label("category_id"),
             Category.name.label("category_name"),
+            Category.parent_id.label("parent_category_id"),
+            ParentCategory.name.label("parent_category_name"),
             Currency.code.label("currency_code"),
             Currency.symbol.label("currency_symbol"),
             func.sum(Transaction.amount).label("total"),
         )
         .join(Category, Category.id == Transaction.category_id)
+        .outerjoin(ParentCategory, ParentCategory.id == Category.parent_id)
         .join(Currency, Currency.id == Transaction.currency_id)
         .filter(
             Transaction.user_id == current_user.id,
@@ -195,7 +200,11 @@ def get_by_category_report(
             Transaction.date < month_end,
             Transaction.category_id.isnot(None),
         )
-        .group_by(Currency.id, Currency.code, Currency.symbol, Transaction.category_id, Category.name)
+        .group_by(
+            Currency.id, Currency.code, Currency.symbol,
+            Transaction.category_id, Category.name, Category.parent_id,
+            ParentCategory.name,
+        )
         .order_by(Currency.code, func.sum(Transaction.amount).desc())
         .offset(offset)
         .limit(limit)
@@ -211,6 +220,8 @@ def get_by_category_report(
         CategoryReport(
             category_id=r.category_id,
             category_name=r.category_name,
+            parent_category_id=r.parent_category_id,
+            parent_category_name=r.parent_category_name,
             currency_code=r.currency_code,
             currency_symbol=r.currency_symbol,
             total=r.total,

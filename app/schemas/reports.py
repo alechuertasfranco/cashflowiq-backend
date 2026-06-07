@@ -1,6 +1,7 @@
 # app/schemas/reports.py
 
 from decimal import Decimal
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -26,6 +27,8 @@ class CategoryReport(BaseModel):
 
     category_id: int
     category_name: str
+    parent_category_id: Optional[int] = None
+    parent_category_name: Optional[str] = None
     currency_code: str
     currency_symbol: str
     total: Decimal
