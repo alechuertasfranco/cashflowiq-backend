@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.transaction import Transaction
 from app.models.bank_account import BankAccount
+from app.models.credit_card import CreditCard
 from app.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionResponse
 from app.dependencies.current_user import get_current_user, get_db
 from app.models.user import User
@@ -70,20 +71,29 @@ def create_transaction(
 ):
     tx_type = data.type.upper()
 
-    # Derive currency from the primary account if not provided
+    # Derive currency from the primary source if not provided
     currency_id = data.currency_id
     if currency_id is None:
-        ref_id = data.account_id
-        if ref_id is None:
-            raise HTTPException(status_code=400, detail="account_id or currency_id is required")
-        account = (
-            db.query(BankAccount)
-            .filter(BankAccount.id == ref_id, BankAccount.user_id == current_user.id)
-            .first()
-        )
-        if not account:
-            raise HTTPException(status_code=404, detail="Account not found")
-        currency_id = account.currency_id
+        if data.account_id is not None:
+            account = (
+                db.query(BankAccount)
+                .filter(BankAccount.id == data.account_id, BankAccount.user_id == current_user.id)
+                .first()
+            )
+            if not account:
+                raise HTTPException(status_code=404, detail="Account not found")
+            currency_id = account.currency_id
+        elif data.credit_card_id is not None:
+            card = (
+                db.query(CreditCard)
+                .filter(CreditCard.id == data.credit_card_id, CreditCard.user_id == current_user.id)
+                .first()
+            )
+            if not card:
+                raise HTTPException(status_code=404, detail="Credit card not found")
+            currency_id = card.currency_id
+        else:
+            raise HTTPException(status_code=400, detail="account_id or credit_card_id is required")
 
     # Map account fields by transaction type
     from_account_id = None

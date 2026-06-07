@@ -66,18 +66,19 @@ def get_categories_with_children(
     )
 
     spent_map = {
-        (row[0], row[1]): row[2]
+        row[0]: row[1]
         for row in db.query(
             Transaction.category_id,
-            Transaction.currency_id,
             func.coalesce(func.sum(Transaction.amount), 0),
         )
         .filter(
             Transaction.user_id == current_user.id,
+            Transaction.type == "EXPENSE",
+            Transaction.category_id.isnot(None),
             extract("month", Transaction.date) == now.month,
             extract("year", Transaction.date) == now.year,
         )
-        .group_by(Transaction.category_id, Transaction.currency_id)
+        .group_by(Transaction.category_id)
         .all()
     }
 
@@ -87,8 +88,7 @@ def get_categories_with_children(
             category.budget = category.budget[0] if category.budget else None
 
         if category.budget:
-            key = (category.id, category.budget.currency_id)
-            category.budget.spent = spent_map.get(key, 0)
+            category.budget.spent = spent_map.get(category.id, 0)
 
         for child in category.children or []:
             attach_budget(child)
