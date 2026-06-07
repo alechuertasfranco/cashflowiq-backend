@@ -5,10 +5,12 @@ from pydantic import BaseModel
 
 
 class CashflowReport(BaseModel):
-    """Monthly cashflow summary for the authenticated user."""
+    """Monthly cashflow summary for the authenticated user, per currency."""
 
     year: int
     month: int
+    currency_code: str
+    currency_symbol: str
     total_income: Decimal
     total_expense: Decimal
     fixed_expense: Decimal
@@ -20,10 +22,12 @@ class CashflowReport(BaseModel):
 
 
 class CategoryReport(BaseModel):
-    """Spending (or income) breakdown by category for a given month."""
+    """Spending (or income) breakdown by category for a given month, per currency."""
 
     category_id: int
     category_name: str
+    currency_code: str
+    currency_symbol: str
     total: Decimal
     percentage: float
 
@@ -32,10 +36,12 @@ class CategoryReport(BaseModel):
 
 
 class EntityReport(BaseModel):
-    """Income / expense breakdown by bank entity for a given month."""
+    """Income / expense breakdown by bank entity for a given month, per currency."""
 
     entity_id: int
     entity_name: str
+    currency_code: str
+    currency_symbol: str
     total_income: Decimal
     total_expense: Decimal
     net: Decimal
