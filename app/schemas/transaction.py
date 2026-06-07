@@ -30,9 +30,11 @@ class TransactionCreate(BaseModel):
     # For INCOME: account_id = destination account
     # For EXPENSE: account_id = source account; credit_card_id = source card instead
     # For TRANSFER: account_id = source account, to_account_id = destination account
+    #   Credit card payment TRANSFER: account_id = source account, to_credit_card_id = destination card
     account_id: Optional[int] = None
     to_account_id: Optional[int] = None
     credit_card_id: Optional[int] = None
+    to_credit_card_id: Optional[int] = None
 
     category_id: Optional[int] = None
     currency_id: Optional[int] = None  # derived from account if omitted
@@ -68,6 +70,8 @@ class TransactionResponse(BaseModel):
     # account_id: computed via @property on the ORM model
     account_id: Optional[int] = None
     to_account_id: Optional[int] = None
+    to_credit_card_id: Optional[int] = None
+    credit_card_id: Optional[int] = None   # source credit card for EXPENSE
 
     category_id: Optional[int] = None
     category: Optional[TransactionCategoryResponse] = None

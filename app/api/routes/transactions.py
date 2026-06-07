@@ -23,6 +23,9 @@ def _enrich(tx: Transaction) -> dict:
     if tx.currency is not None:
         data["currency_code"] = tx.currency.code
         data["currency_symbol"] = tx.currency.symbol
+    # Map ORM column from_credit_card_id → response field credit_card_id
+    data["credit_card_id"] = tx.from_credit_card_id
+    # to_credit_card_id is a direct ORM column; model_validate picks it up automatically
     return data
 
 
@@ -112,6 +115,7 @@ def create_transaction(
     from_account_id = None
     from_credit_card_id = None
     to_account_id = None
+    to_credit_card_id = None
 
     if tx_type == "INCOME":
         to_account_id = data.account_id
@@ -122,12 +126,36 @@ def create_transaction(
             from_account_id = data.account_id
     elif tx_type == "TRANSFER":
         from_account_id = data.account_id
-        to_account_id = data.to_account_id
-        if not from_account_id or not to_account_id:
-            raise HTTPException(
-                status_code=400,
-                detail="Transfer requires both account_id (source) and to_account_id (destination)",
+        if data.to_credit_card_id is not None:
+            # Credit card payment: source bank account → destination credit card
+            if not from_account_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Credit card payment transfer requires account_id (source bank account)",
+                )
+            # Validate that the destination credit card exists and belongs to this user
+            dest_card = (
+                db.query(CreditCard)
+                .filter(
+                    CreditCard.id == data.to_credit_card_id,
+                    CreditCard.user_id == current_user.id,
+                )
+                .first()
             )
+            if not dest_card:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Destination credit card not found or does not belong to you",
+                )
+            to_credit_card_id = data.to_credit_card_id
+            to_account_id = None
+        else:
+            to_account_id = data.to_account_id
+            if not from_account_id or not to_account_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Transfer requires both account_id (source) and to_account_id (destination)",
+                )
     else:
         raise HTTPException(status_code=400, detail=f"Unknown transaction type: {data.type}")
 
@@ -140,6 +168,7 @@ def create_transaction(
         from_account_id=from_account_id,
         from_credit_card_id=from_credit_card_id,
         to_account_id=to_account_id,
+        to_credit_card_id=to_credit_card_id,
         category_id=data.category_id,
         currency_id=currency_id,
         is_recurring=data.is_recurring,
