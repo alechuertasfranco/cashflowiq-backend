@@ -140,7 +140,7 @@ def get_cashflow_report(
 def get_by_category_report(
     year: Optional[int] = Query(default=None),
     month: Optional[int] = Query(default=None),
-    tx_type: Optional[str] = Query(default="EXPENSE", alias="type"),
+    tx_type: Optional[str] = Query(default="EXPENSE", alias="type"),  # pylint: disable=redefined-builtin
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
