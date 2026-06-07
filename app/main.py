@@ -12,6 +12,7 @@ from app.api.routes import (
     categories,
     budgets,
     transactions,
+    dashboard,
 )
 
 # Configuracion global de logging
@@ -28,3 +29,4 @@ app.include_router(investment_funds.router)
 app.include_router(categories.router)
 app.include_router(budgets.router)
 app.include_router(transactions.router)
+app.include_router(dashboard.router)
