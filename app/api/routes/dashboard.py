@@ -29,7 +29,8 @@ def get_dashboard_summary(
     - net_balance: total_income - total_expense.
     - accounts: every BankAccount with its all-time running balance
       (initial_amount + sum of INCOME credited to it -
-       sum of EXPENSE/TRANSFER debited from it).
+       sum of EXPENSE/TRANSFER debited from it), sorted by balance descending.
+    - most_active_account_*: account with the most transactions this month.
     """
     now = datetime.now(timezone.utc)
     month_start = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
@@ -71,7 +72,7 @@ def get_dashboard_summary(
     # --- All-time per-account running balances ---
     accounts = (
         db.query(BankAccount)
-        .options(joinedload(BankAccount.currency))
+        .options(joinedload(BankAccount.currency), joinedload(BankAccount.bank_entity))
         .filter(BankAccount.user_id == current_user.id)
         .all()
     )
@@ -108,23 +109,59 @@ def get_dashboard_summary(
     )
     debits_map = {row.account_id: row.total for row in debits_rows}
 
-    account_balances = [
-        AccountBalance(
-            id=account.id,
-            name=account.name,
-            currency_code=account.currency.code,
-            balance=(
-                account.initial_amount
-                + credits_map.get(account.id, Decimal("0"))
-                - debits_map.get(account.id, Decimal("0"))
-            ),
+    account_balances = sorted(
+        [
+            AccountBalance(
+                id=account.id,
+                name=account.name,
+                currency_code=account.currency.code,
+                bank_entity_code=account.bank_entity.code,
+                balance=(
+                    account.initial_amount
+                    + credits_map.get(account.id, Decimal("0"))
+                    - debits_map.get(account.id, Decimal("0"))
+                ),
+            )
+            for account in accounts
+        ],
+        key=lambda a: a.balance,
+        reverse=True,
+    )
+
+    # --- Most active account this month (by transaction count) ---
+    monthly_txs = (
+        db.query(Transaction.from_account_id, Transaction.to_account_id)
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.date >= month_start,
+            Transaction.date <= now,
         )
-        for account in accounts
-    ]
+        .all()
+    )
+
+    account_tx_count: dict[int, int] = {}
+    for tx in monthly_txs:
+        if tx.from_account_id is not None:
+            account_tx_count[tx.from_account_id] = account_tx_count.get(tx.from_account_id, 0) + 1
+        if tx.to_account_id is not None:
+            account_tx_count[tx.to_account_id] = account_tx_count.get(tx.to_account_id, 0) + 1
+
+    most_active_id = None
+    most_active_name = None
+    most_active_count = 0
+    if account_tx_count:
+        most_active_id = max(account_tx_count, key=lambda k: account_tx_count[k])
+        most_active_count = account_tx_count[most_active_id]
+        most_active_name = next(
+            (acc.name for acc in accounts if acc.id == most_active_id), None
+        )
 
     return DashboardSummary(
         total_income=total_income,
         total_expense=total_expense,
         net_balance=net_balance,
         accounts=account_balances,
+        most_active_account_id=most_active_id,
+        most_active_account_name=most_active_name,
+        most_active_account_tx_count=most_active_count,
     )
