@@ -39,7 +39,7 @@ def _add_months(dt: datetime, months: int) -> datetime:
     return dt.replace(year=year, month=month, day=day)
 
 
-def _advance_date(current: datetime, frequency: str) -> datetime:
+def advance_date(current: datetime, frequency: str) -> datetime:
     """Return the next execution date based on frequency."""
     if frequency == "DAILY":
         return current + timedelta(days=1)
@@ -95,6 +95,7 @@ def run_due_recurring_transactions(db: Session) -> int:
         .filter(
             RecurringTransaction.is_active == True,  # noqa: E712
             RecurringTransaction.next_execution_date <= today + timedelta(days=1),
+            RecurringTransaction.notification_days_before == None,  # noqa: E711
         )
         .all()
     )
@@ -139,7 +140,7 @@ def run_due_recurring_transactions(db: Session) -> int:
         db.add(tx)
 
         # Advance next_execution_date
-        next_date = _advance_date(rule.next_execution_date, rule.frequency)
+        next_date = advance_date(rule.next_execution_date, rule.frequency)
         rule.next_execution_date = next_date
 
         # Deactivate if end_date is reached

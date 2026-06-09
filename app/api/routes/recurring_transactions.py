@@ -11,7 +11,7 @@ from app.schemas.recurring_transaction import (
 )
 from app.dependencies.current_user import get_current_user, get_db
 from app.models.user import User
-from app.services.recurring_executor import run_due_recurring_transactions
+from app.services.recurring_executor import run_due_recurring_transactions, advance_date
 
 router = APIRouter(prefix="/recurring-transactions", tags=["Recurring Transactions"])
 
@@ -97,6 +97,7 @@ def create_recurring_transaction(
         account_id=data.account_id,
         credit_card_id=data.credit_card_id,
         currency_id=data.currency_id,
+        notification_days_before=data.notification_days_before,
     )
 
     db.add(rule)
@@ -122,7 +123,7 @@ def update_recurring_transaction(
 
     if data.name is not None:
         rule.name = data.name
-    if data.amount is not None:
+    if 'amount' in data.model_fields_set:
         rule.amount = data.amount
     if data.type is not None:
         tx_type = data.type.upper()
@@ -151,10 +152,33 @@ def update_recurring_transaction(
         rule.credit_card_id = data.credit_card_id
     if data.currency_id is not None:
         rule.currency_id = data.currency_id
+    if 'notification_days_before' in data.model_fields_set:
+        rule.notification_days_before = data.notification_days_before
 
     db.commit()
 
     # Re-fetch with all eager loads to populate currency.
+    return _enrich_recurring(_get_or_404(db, rule_id, current_user.id))
+
+
+# POST /recurring-transactions/{id}/advance
+@router.post("/{rule_id}/advance", response_model=RecurringTransactionResponse)
+def advance_recurring_transaction(
+    rule_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Advance next_execution_date by one frequency period. Called by the mobile app
+    after it registers the transaction triggered by a local notification."""
+    rule = _get_or_404(db, rule_id, current_user.id)
+
+    next_date = advance_date(rule.next_execution_date, rule.frequency)
+    rule.next_execution_date = next_date
+
+    if rule.end_date is not None and next_date.date() > rule.end_date:
+        rule.is_active = False
+
+    db.commit()
     return _enrich_recurring(_get_or_404(db, rule_id, current_user.id))
 
 

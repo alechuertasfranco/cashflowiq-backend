@@ -13,7 +13,7 @@ class RecurringTransaction(Base):
 
     name = Column(String, nullable=False)
 
-    amount = Column(Numeric(14, 2), nullable=False)
+    amount = Column(Numeric(14, 2), nullable=True)
 
     type = Column(
         Enum("INCOME", "EXPENSE", name="recurring_type_enum"),
@@ -41,6 +41,8 @@ class RecurringTransaction(Base):
 
     # Currency of the generated transactions — derived from the linked account/card if omitted
     currency_id = Column(Integer, ForeignKey("currencies.id"), nullable=True)
+
+    notification_days_before = Column(Integer, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

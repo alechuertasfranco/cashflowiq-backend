@@ -10,7 +10,7 @@ from app.schemas.category import CategoryResponse
 
 class RecurringTransactionCreate(BaseModel):
     name: str
-    amount: Decimal
+    amount: Optional[Decimal] = None
     type: str           # INCOME | EXPENSE
     frequency: str      # DAILY | WEEKLY | MONTHLY | YEARLY
     next_execution_date: datetime
@@ -19,6 +19,7 @@ class RecurringTransactionCreate(BaseModel):
     account_id: Optional[int] = None
     credit_card_id: Optional[int] = None
     currency_id: Optional[int] = None
+    notification_days_before: Optional[int] = None
 
 
 class RecurringTransactionUpdate(BaseModel):
@@ -33,12 +34,13 @@ class RecurringTransactionUpdate(BaseModel):
     account_id: Optional[int] = None
     credit_card_id: Optional[int] = None
     currency_id: Optional[int] = None
+    notification_days_before: Optional[int] = None
 
 
 class RecurringTransactionResponse(BaseModel):
     id: int
     name: str
-    amount: Decimal
+    amount: Optional[Decimal] = None
     type: str
     frequency: str
     next_execution_date: datetime
@@ -51,6 +53,7 @@ class RecurringTransactionResponse(BaseModel):
     currency_id: Optional[int] = None
     currency_code: Optional[str] = None
     currency_symbol: Optional[str] = None
+    notification_days_before: Optional[int] = None
     user_id: int
     created_at: datetime
 
