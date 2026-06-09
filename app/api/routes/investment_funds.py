@@ -4,10 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.investment_fund import InvestmentFund
+from app.models.investment_fund_snapshot import InvestmentFundSnapshot
 from app.schemas.investment_fund import (
     InvestmentFundCreate,
     InvestmentFundUpdate,
     InvestmentFundResponse,
+)
+from app.schemas.investment_fund_snapshot import (
+    InvestmentFundSnapshotCreate,
+    InvestmentFundSnapshotResponse,
 )
 from app.dependencies.current_user import get_current_user, get_db
 from app.models.user import User
@@ -121,4 +126,85 @@ def delete_fund(
     db.delete(existing)
     db.commit()
 
+    return {"message": "Deleted successfully"}
+
+
+# --- Snapshot sub-resources ---
+
+def _get_fund_or_404(fund_id: int, user_id: int, db: Session) -> InvestmentFund:
+    fund = (
+        db.query(InvestmentFund)
+        .filter(
+            InvestmentFund.id == fund_id,
+            InvestmentFund.user_id == user_id,
+        )
+        .first()
+    )
+    if not fund:
+        raise HTTPException(status_code=404, detail="Fund not found")
+    return fund
+
+
+# GET /investment-funds/{fund_id}/snapshots
+@router.get("/{fund_id}/snapshots", response_model=list[InvestmentFundSnapshotResponse])
+def get_snapshots(
+    fund_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _get_fund_or_404(fund_id, current_user.id, db)
+    return (
+        db.query(InvestmentFundSnapshot)
+        .filter(
+            InvestmentFundSnapshot.investment_fund_id == fund_id,
+            InvestmentFundSnapshot.user_id == current_user.id,
+        )
+        .order_by(InvestmentFundSnapshot.snapshot_date.asc())
+        .all()
+    )
+
+
+# POST /investment-funds/{fund_id}/snapshots
+@router.post("/{fund_id}/snapshots", response_model=InvestmentFundSnapshotResponse, status_code=201)
+def create_snapshot(
+    fund_id: int,
+    snapshot: InvestmentFundSnapshotCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _get_fund_or_404(fund_id, current_user.id, db)
+    new_snapshot = InvestmentFundSnapshot(
+        investment_fund_id=fund_id,
+        user_id=current_user.id,
+        snapshot_date=snapshot.snapshot_date,
+        value=snapshot.value,
+    )
+    db.add(new_snapshot)
+    db.commit()
+    db.refresh(new_snapshot)
+    return new_snapshot
+
+
+# DELETE /investment-funds/{fund_id}/snapshots/{snapshot_id}
+@router.delete("/{fund_id}/snapshots/{snapshot_id}")
+def delete_snapshot(
+    fund_id: int,
+    snapshot_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _get_fund_or_404(fund_id, current_user.id, db)
+    existing = (
+        db.query(InvestmentFundSnapshot)
+        .filter(
+            InvestmentFundSnapshot.id == snapshot_id,
+            InvestmentFundSnapshot.investment_fund_id == fund_id,
+            InvestmentFundSnapshot.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not existing:
+        raise HTTPException(status_code=404, detail="Snapshot not found")
+    db.delete(existing)
+    db.commit()
     return {"message": "Deleted successfully"}

@@ -9,6 +9,7 @@ from app.models.contact import Contact
 from app.models.credit_card import CreditCard
 from app.models.currency import Currency
 from app.models.investment_fund import InvestmentFund
+from app.models.investment_fund_snapshot import InvestmentFundSnapshot
 from app.models.monthly_balance import MonthlyBalance
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.split_settlement import SplitSettlement

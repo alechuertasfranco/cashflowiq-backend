@@ -29,3 +29,9 @@ class InvestmentFund(Base):
     user = relationship("User", back_populates="investment_funds")
     bank_entity = relationship("BankEntity", back_populates="investment_funds")
     currency = relationship("Currency")
+    snapshots = relationship(
+        "InvestmentFundSnapshot",
+        back_populates="fund",
+        cascade="all, delete-orphan",
+        order_by="InvestmentFundSnapshot.snapshot_date",
+    )
