@@ -173,11 +173,13 @@ def update_recurring_transaction(
         rule.is_active = data.is_active
     if data.category_id is not None:
         rule.category_id = data.category_id
-    if data.account_id is not None:
+    # account_id / credit_card_id are mutually exclusive payment sources; honor
+    # explicit nulls (via model_fields_set) so switching one clears the other.
+    if 'account_id' in data.model_fields_set:
         rule.account_id = data.account_id
-    if data.credit_card_id is not None:
+    if 'credit_card_id' in data.model_fields_set:
         rule.credit_card_id = data.credit_card_id
-    if data.currency_id is not None:
+    if 'currency_id' in data.model_fields_set:
         rule.currency_id = data.currency_id
     if 'notification_days_before' in data.model_fields_set:
         rule.notification_days_before = data.notification_days_before
