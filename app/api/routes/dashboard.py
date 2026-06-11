@@ -77,7 +77,11 @@ def get_dashboard_summary(
         .all()
     )
 
-    # Aggregate credits (INCOME to each account) across all time.
+    # Aggregate credits to each account across all time.
+    # INCOME: money flowing in from outside (salary, freelance, etc.) — to_account_id is set.
+    # TRANSFER: money arriving from another internal account — to_account_id is set.
+    # Credit-card payment transfers (to_credit_card_id set, to_account_id NULL) are
+    # correctly excluded here because to_account_id IS NOT NULL filters them out.
     credits_rows = (
         db.query(
             Transaction.to_account_id.label("account_id"),
@@ -85,7 +89,7 @@ def get_dashboard_summary(
         )
         .filter(
             Transaction.user_id == current_user.id,
-            Transaction.type == "INCOME",
+            Transaction.type.in_(["INCOME", "TRANSFER"]),
             Transaction.to_account_id.isnot(None),
         )
         .group_by(Transaction.to_account_id)
@@ -93,7 +97,12 @@ def get_dashboard_summary(
     )
     credits_map = {row.account_id: row.total for row in credits_rows}
 
-    # Aggregate debits (EXPENSE or TRANSFER from each account) across all time.
+    # Aggregate debits from each account across all time.
+    # EXPENSE: money leaving the account for external spending.
+    # TRANSFER: money leaving the account to another account OR to a credit card
+    #   (credit-card payment: from_account_id is set, to_credit_card_id is set,
+    #    to_account_id is NULL — this is correctly captured here because we only
+    #    require from_account_id IS NOT NULL).
     debits_rows = (
         db.query(
             Transaction.from_account_id.label("account_id"),
