@@ -52,6 +52,19 @@ def advance_date(current: datetime, frequency: str) -> datetime:
     raise ValueError(f"Unknown frequency: {frequency}")
 
 
+def retreat_date(current: datetime, frequency: str) -> datetime:
+    """Return the previous execution date — the inverse of advance_date."""
+    if frequency == "DAILY":
+        return current - timedelta(days=1)
+    if frequency == "WEEKLY":
+        return current - timedelta(weeks=1)
+    if frequency == "MONTHLY":
+        return _add_months(current, -1)
+    if frequency == "YEARLY":
+        return _add_months(current, -12)
+    raise ValueError(f"Unknown frequency: {frequency}")
+
+
 def _resolve_currency(db: Session, rule: RecurringTransaction) -> int:
     """
     Return the currency_id to use for the generated transaction.

@@ -173,6 +173,7 @@ def create_transaction(
         currency_id=currency_id,
         is_recurring=data.is_recurring,
         is_fixed=data.is_fixed,
+        recurring_transaction_id=data.recurring_transaction_id,
     )
 
     db.add(tx)

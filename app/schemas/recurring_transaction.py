@@ -54,6 +54,10 @@ class RecurringTransactionResponse(BaseModel):
     currency_code: Optional[str] = None
     currency_symbol: Optional[str] = None
     notification_days_before: Optional[int] = None
+
+    # True only when an actual transaction backs the current period (not a date guess)
+    current_period_registered: bool = False
+
     user_id: int
     created_at: datetime
 

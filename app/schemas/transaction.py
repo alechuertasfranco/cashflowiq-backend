@@ -42,6 +42,9 @@ class TransactionCreate(BaseModel):
     is_recurring: bool = False
     is_fixed: bool = False
 
+    # Set when this transaction is generated from a recurring rule (links them)
+    recurring_transaction_id: Optional[int] = None
+
     # Optional split expense items
     splits: Optional[List[SplitItemCreate]] = None
 
@@ -82,6 +85,7 @@ class TransactionResponse(BaseModel):
 
     is_recurring: bool
     is_fixed: bool
+    recurring_transaction_id: Optional[int] = None
 
     user_id: int
     created_at: datetime

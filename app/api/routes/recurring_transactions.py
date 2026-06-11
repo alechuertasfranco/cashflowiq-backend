@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.recurring_transaction import RecurringTransaction
+from app.models.transaction import Transaction
 from app.schemas.recurring_transaction import (
     RecurringTransactionCreate,
     RecurringTransactionUpdate,
@@ -11,17 +12,43 @@ from app.schemas.recurring_transaction import (
 )
 from app.dependencies.current_user import get_current_user, get_db
 from app.models.user import User
-from app.services.recurring_executor import run_due_recurring_transactions, advance_date
+from app.services.recurring_executor import (
+    run_due_recurring_transactions,
+    advance_date,
+    retreat_date,
+)
 
 router = APIRouter(prefix="/recurring-transactions", tags=["Recurring Transactions"])
 
 
-def _enrich_recurring(rule: RecurringTransaction) -> dict:
+def _is_current_period_registered(db: Session, rule: RecurringTransaction) -> bool:
+    """A rule counts as 'registered' for its current period only when an actual
+    transaction linked to it exists for that period — never inferred from dates alone.
+
+    Registration advances next_execution_date forward by one period, so the
+    just-registered transaction's date lands in [prev_date, next_execution_date).
+    If the user deletes that transaction, this returns False again.
+    """
+    prev_date = retreat_date(rule.next_execution_date, rule.frequency)
+    exists = (
+        db.query(Transaction.id)
+        .filter(
+            Transaction.recurring_transaction_id == rule.id,
+            Transaction.date >= prev_date,
+            Transaction.date < rule.next_execution_date,
+        )
+        .first()
+    )
+    return exists is not None
+
+
+def _enrich_recurring(rule: RecurringTransaction, db: Session) -> dict:
     """Convert a RecurringTransaction ORM object to a dict and inject currency fields."""
     data = RecurringTransactionResponse.model_validate(rule).model_dump()
     if rule.currency is not None:
         data["currency_code"] = rule.currency.code
         data["currency_symbol"] = rule.currency.symbol
+    data["current_period_registered"] = _is_current_period_registered(db, rule)
     return data
 
 
@@ -63,7 +90,7 @@ def list_recurring_transactions(
         .limit(limit)
         .all()
     )
-    return [_enrich_recurring(r) for r in rules]
+    return [_enrich_recurring(r, db) for r in rules]
 
 
 # POST /recurring-transactions
@@ -108,7 +135,7 @@ def create_recurring_transaction(
     run_due_recurring_transactions(db)
 
     # Re-fetch to reflect any date advancement that just happened
-    return _enrich_recurring(_get_or_404(db, rule.id, current_user.id))
+    return _enrich_recurring(_get_or_404(db, rule.id, current_user.id), db)
 
 
 # PUT /recurring-transactions/{id}
@@ -158,7 +185,7 @@ def update_recurring_transaction(
     db.commit()
 
     # Re-fetch with all eager loads to populate currency.
-    return _enrich_recurring(_get_or_404(db, rule_id, current_user.id))
+    return _enrich_recurring(_get_or_404(db, rule_id, current_user.id), db)
 
 
 # POST /recurring-transactions/{id}/advance
@@ -179,7 +206,7 @@ def advance_recurring_transaction(
         rule.is_active = False
 
     db.commit()
-    return _enrich_recurring(_get_or_404(db, rule_id, current_user.id))
+    return _enrich_recurring(_get_or_404(db, rule_id, current_user.id), db)
 
 
 # DELETE /recurring-transactions/{id}
