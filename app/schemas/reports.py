@@ -51,3 +51,35 @@ class EntityReport(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class MonthlyTrendPoint(BaseModel):
+    """Single month data point for the multi-month cashflow trend, per currency."""
+
+    year: int
+    month: int
+    currency_code: str
+    currency_symbol: str
+    total_income: Decimal
+    total_expense: Decimal
+    net: Decimal
+
+    class Config:
+        from_attributes = True
+
+
+class BudgetVsActualItem(BaseModel):
+    """Budget adherence for a single category in a given month."""
+
+    category_id: int
+    category_name: str
+    parent_category_id: Optional[int] = None
+    parent_category_name: Optional[str] = None
+    currency_code: str
+    currency_symbol: str
+    budget_amount: Decimal
+    spent_amount: Decimal
+    percentage_used: float
+
+    class Config:
+        from_attributes = True
