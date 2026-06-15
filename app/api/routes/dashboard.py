@@ -9,9 +9,10 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.dependencies.current_user import get_current_user, get_db
 from app.models.bank_account import BankAccount
+from app.models.credit_card import CreditCard
 from app.models.transaction import Transaction
 from app.models.user import User
-from app.schemas.dashboard import AccountBalance, DashboardSummary
+from app.schemas.dashboard import AccountBalance, CreditCardBalance, DashboardSummary
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -194,6 +195,48 @@ def get_dashboard_summary(
             (acc.name for acc in accounts if acc.id == most_active_id), None
         )
 
+    # --- Credit card debt ---
+    cards = (
+        db.query(CreditCard)
+        .options(joinedload(CreditCard.currency), joinedload(CreditCard.bank_entity))
+        .filter(CreditCard.user_id == current_user.id)
+        .all()
+    )
+
+    used_rows = (
+        db.query(
+            Transaction.from_credit_card_id.label("card_id"),
+            func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total"),
+        )
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.from_credit_card_id.isnot(None),
+            Transaction.type == "EXPENSE",
+        )
+        .group_by(Transaction.from_credit_card_id)
+        .all()
+    )
+    used_map = {row.card_id: row.total for row in used_rows}
+
+    credit_card_balances = sorted(
+        [
+            CreditCardBalance(
+                id=card.id,
+                name=card.name,
+                brand=card.brand.value if hasattr(card.brand, "value") else card.brand,
+                currency_code=card.currency.code,
+                bank_entity_code=card.bank_entity.code,
+                credit_limit=card.credit_limit,
+                used_amount=used_map.get(card.id, Decimal("0")),
+                closing_day=card.closing_day,
+                due_day=card.due_day,
+            )
+            for card in cards
+        ],
+        key=lambda c: c.used_amount,
+        reverse=True,
+    )
+
     return DashboardSummary(
         total_income=total_income,
         total_expense=total_expense,
@@ -201,6 +244,7 @@ def get_dashboard_summary(
         all_time_income=all_time_income,
         all_time_expense=all_time_expense,
         accounts=account_balances,
+        credit_cards=credit_card_balances,
         most_active_account_id=most_active_id,
         most_active_account_name=most_active_name,
         most_active_account_tx_count=most_active_count,
