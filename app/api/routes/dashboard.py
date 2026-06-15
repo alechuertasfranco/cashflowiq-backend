@@ -218,6 +218,21 @@ def get_dashboard_summary(
     )
     used_map = {row.card_id: row.total for row in used_rows}
 
+    payment_rows = (
+        db.query(
+            Transaction.to_credit_card_id.label("card_id"),
+            func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total"),
+        )
+        .filter(
+            Transaction.user_id == current_user.id,
+            Transaction.to_credit_card_id.isnot(None),
+            Transaction.type == "TRANSFER",
+        )
+        .group_by(Transaction.to_credit_card_id)
+        .all()
+    )
+    payment_map = {row.card_id: row.total for row in payment_rows}
+
     credit_card_balances = sorted(
         [
             CreditCardBalance(
@@ -227,7 +242,7 @@ def get_dashboard_summary(
                 currency_code=card.currency.code,
                 bank_entity_code=card.bank_entity.code,
                 credit_limit=card.credit_limit,
-                used_amount=used_map.get(card.id, Decimal("0")),
+                used_amount=max(Decimal("0"), used_map.get(card.id, Decimal("0")) - payment_map.get(card.id, Decimal("0"))),
                 closing_day=card.closing_day,
                 due_day=card.due_day,
             )
