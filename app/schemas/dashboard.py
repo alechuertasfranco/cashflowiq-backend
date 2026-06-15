@@ -24,6 +24,7 @@ class DashboardSummary(BaseModel):
 
     total_income / total_expense cover only the current month.
     net_balance = total_income - total_expense.
+    all_time_income / all_time_expense span the entire transaction history.
     accounts contains every BankAccount with its all-time running balance,
     sorted by balance descending.
     most_active_account_* identifies the account with the most transactions
@@ -33,6 +34,8 @@ class DashboardSummary(BaseModel):
     total_income: Decimal
     total_expense: Decimal
     net_balance: Decimal
+    all_time_income: Decimal = Decimal("0")
+    all_time_expense: Decimal = Decimal("0")
     accounts: List[AccountBalance]
     most_active_account_id: Optional[int] = None
     most_active_account_name: Optional[str] = None

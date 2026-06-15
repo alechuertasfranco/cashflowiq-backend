@@ -69,6 +69,35 @@ def get_dashboard_summary(
     total_expense = monthly_totals.total_expense or Decimal("0")
     net_balance = total_income - total_expense
 
+    # --- All-time income / expense aggregates ---
+    all_time_totals = (
+        db.query(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Transaction.type == "INCOME", Transaction.amount),
+                        else_=Decimal("0"),
+                    )
+                ),
+                Decimal("0"),
+            ).label("all_income"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Transaction.type == "EXPENSE", Transaction.amount),
+                        else_=Decimal("0"),
+                    )
+                ),
+                Decimal("0"),
+            ).label("all_expense"),
+        )
+        .filter(Transaction.user_id == current_user.id)
+        .one()
+    )
+
+    all_time_income = all_time_totals.all_income or Decimal("0")
+    all_time_expense = all_time_totals.all_expense or Decimal("0")
+
     # --- All-time per-account running balances ---
     accounts = (
         db.query(BankAccount)
@@ -169,6 +198,8 @@ def get_dashboard_summary(
         total_income=total_income,
         total_expense=total_expense,
         net_balance=net_balance,
+        all_time_income=all_time_income,
+        all_time_expense=all_time_expense,
         accounts=account_balances,
         most_active_account_id=most_active_id,
         most_active_account_name=most_active_name,
