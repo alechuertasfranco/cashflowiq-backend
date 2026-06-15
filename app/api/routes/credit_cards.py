@@ -49,6 +49,46 @@ def _to_response(db: Session, card: CreditCard) -> CreditCardResponse:
     )
 
 
+# GET MOST-USED CREDIT CARDS (by transaction count)
+@router.get("/most-used", response_model=list[CreditCardResponse])
+def get_most_used_credit_cards(
+    limit: int = 3,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    usage = (
+        db.query(
+            CreditCard.id,
+            func.count(Transaction.id).label("usage_count"),
+        )
+        .outerjoin(
+            Transaction,
+            (Transaction.from_credit_card_id == CreditCard.id)
+            | (Transaction.to_credit_card_id == CreditCard.id),
+        )
+        .filter(CreditCard.user_id == current_user.id)
+        .group_by(CreditCard.id)
+        .order_by(func.count(Transaction.id).desc())
+        .limit(limit)
+        .subquery()
+    )
+
+    cards = (
+        db.query(CreditCard)
+        .options(
+            joinedload(CreditCard.bank_entity),
+            joinedload(CreditCard.currency),
+        )
+        .filter(CreditCard.id.in_(db.query(usage.c.id)))
+        .all()
+    )
+
+    # Preserve the order from the subquery
+    id_order = {row.id: i for i, row in enumerate(db.query(usage.c.id, usage.c.usage_count).all())}
+    cards.sort(key=lambda c: id_order.get(c.id, 0))
+    return [_to_response(db, c) for c in cards]
+
+
 # GET CREDIT CARDS
 @router.get("", response_model=list[CreditCardResponse])
 def get_credit_cards(

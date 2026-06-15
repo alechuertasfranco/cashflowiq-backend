@@ -47,6 +47,43 @@ def _to_response(db: Session, account: BankAccount) -> BankAccountResponse:
     )
 
 
+# GET MOST-USED ACCOUNTS (by transaction count)
+@router.get("/most-used", response_model=list[BankAccountResponse])
+def get_most_used_accounts(
+    limit: int = 3,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    usage = (
+        db.query(
+            BankAccount.id,
+            func.count(Transaction.id).label("usage_count"),
+        )
+        .outerjoin(
+            Transaction,
+            (Transaction.from_account_id == BankAccount.id)
+            | (Transaction.to_account_id == BankAccount.id),
+        )
+        .filter(BankAccount.user_id == current_user.id)
+        .group_by(BankAccount.id)
+        .order_by(func.count(Transaction.id).desc())
+        .limit(limit)
+        .subquery()
+    )
+
+    accounts = (
+        db.query(BankAccount)
+        .options(joinedload(BankAccount.bank_entity), joinedload(BankAccount.currency))
+        .filter(BankAccount.id.in_(db.query(usage.c.id)))
+        .all()
+    )
+
+    # Preserve the order from the subquery
+    id_order = {row.id: i for i, row in enumerate(db.query(usage.c.id, usage.c.usage_count).all())}
+    accounts.sort(key=lambda a: id_order.get(a.id, 0))
+    return [_to_response(db, a) for a in accounts]
+
+
 # GET ACCOUNTS
 @router.get("", response_model=list[BankAccountResponse])
 def get_accounts(
