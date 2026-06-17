@@ -10,6 +10,7 @@ from app.dependencies.current_user import get_current_user, get_db
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.transaction import Transaction
+from app.models.user import User
 from app.schemas.budget import BudgetCreate, BudgetResponse
 
 router = APIRouter(prefix="/budgets", tags=["Budgets"])
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/budgets", tags=["Budgets"])
 def create_or_update_budget(
     data: BudgetCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create or update a monthly budget for a category.
@@ -59,7 +60,7 @@ def get_budgets(
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Retrieve all budgets for the current user,

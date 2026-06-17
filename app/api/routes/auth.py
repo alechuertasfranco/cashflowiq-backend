@@ -20,7 +20,7 @@ def get_db():
 
 @router.post("/sync-user")
 def sync_user(
-    user_data=Depends(verify_firebase_token),
+    user_data: dict = Depends(verify_firebase_token),
     db: Session = Depends(get_db),
 ):
     firebase_uid = user_data["uid"]

@@ -12,6 +12,7 @@ from app.dependencies.current_user import get_current_user, get_db
 from app.models.transaction import Transaction
 from app.models.category import Category
 from app.models.budget import Budget
+from app.models.user import User
 from app.schemas.category import (
     CategoryCreate,
     CategoryResponse,
@@ -28,7 +29,7 @@ def get_categories(
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Retrieve categories for the current user, optionally filtered by type."""
     query = db.query(Category).filter(Category.user_id == current_user.id)
@@ -47,7 +48,7 @@ def get_categories_with_children(
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Return parent categories with:
@@ -117,7 +118,7 @@ def get_categories_with_children(
 def create_category(
     data: CategoryCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new category for the current user."""
     # Validar tipo
@@ -146,7 +147,7 @@ def update_category(
     category_id: int,
     data: CategoryUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Update an existing category for the current user."""
     category = db.query(Category).filter(Category.id == category_id, Category.user_id == current_user.id).first()
@@ -182,7 +183,7 @@ def update_category(
 def delete_category(
     category_id: int,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a category for the current user."""
     category = db.query(Category).filter(Category.id == category_id, Category.user_id == current_user.id).first()

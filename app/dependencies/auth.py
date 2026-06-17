@@ -28,7 +28,7 @@ if not firebase_admin._apps:
 
 async def verify_firebase_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-):
+) -> dict:
     try:
         token = credentials.credentials
         decoded_token = auth.verify_id_token(token)

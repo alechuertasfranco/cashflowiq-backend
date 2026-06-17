@@ -17,9 +17,9 @@ def get_db():
 
 
 def get_current_user(
-    user_data=Depends(verify_firebase_token),
+    user_data: dict = Depends(verify_firebase_token),
     db: Session = Depends(get_db),
-):
+) -> User:
     firebase_uid = user_data["uid"]
 
     user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
