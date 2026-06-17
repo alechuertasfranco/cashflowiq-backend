@@ -31,6 +31,7 @@ class TransactionSplitResponse(BaseModel):
 
 class SplitSettlementCreate(BaseModel):
     amount: Decimal
+    to_account_id: int  # account that received the contact's payment
 
 
 class SplitSettlementResponse(BaseModel):
@@ -39,6 +40,7 @@ class SplitSettlementResponse(BaseModel):
     amount: Decimal
     date: Optional[datetime] = None
     transaction_id: Optional[int] = None
+    to_account_id: Optional[int] = None
 
     class Config:
         from_attributes = True

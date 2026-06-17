@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.transaction_split import TransactionSplit
 from app.models.split_settlement import SplitSettlement
 from app.models.transaction import Transaction
+from app.models.bank_account import BankAccount
 from app.schemas.transaction_split import (
     TransactionSplitResponse,
     SplitSettlementCreate,
@@ -101,14 +102,43 @@ def settle_split(
     if split.is_settled:
         raise HTTPException(status_code=400, detail="Split is already settled")
 
+    # Verify the destination account belongs to the current user.
+    account = (
+        db.query(BankAccount)
+        .filter(
+            BankAccount.id == data.to_account_id,
+            BankAccount.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    # Record the contact's payment as a real income transaction so it
+    # reflects on the destination account's balance.
+    contact_name = split.contact.name if split.contact else "contacto"
+    settlement_tx = Transaction(
+        type="INCOME",
+        amount=data.amount,
+        description=f"Pago de {contact_name}",
+        date=datetime.utcnow(),
+        user_id=current_user.id,
+        to_account_id=data.to_account_id,
+        currency_id=account.currency_id,
+    )
+    db.add(settlement_tx)
+    db.commit()
+    db.refresh(settlement_tx)
+
     # Mark the split as settled.
     split.is_settled = True
 
-    # Record the settlement.
+    # Record the settlement, linked to the income transaction just created.
     settlement = SplitSettlement(
         split_id=split.id,
         amount=data.amount,
         date=datetime.utcnow(),
+        transaction_id=settlement_tx.id,
     )
     db.add(settlement)
     db.commit()
