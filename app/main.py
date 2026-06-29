@@ -21,7 +21,6 @@ from app.api.routes import (
     transaction_splits,
     payment_sources,
     payment_services,
-    vouchers,
 )
 from app.services.recurring_executor import start_daily_scheduler
 
@@ -77,4 +76,3 @@ app.include_router(contacts.router)
 app.include_router(transaction_splits.router)
 app.include_router(payment_sources.router)
 app.include_router(payment_services.router)
-app.include_router(vouchers.router)
