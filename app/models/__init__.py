@@ -15,4 +15,5 @@ from app.models.recurring_transaction import RecurringTransaction
 from app.models.split_settlement import SplitSettlement
 from app.models.transaction import Transaction
 from app.models.transaction_split import TransactionSplit
+from app.models.payment_service import PaymentService
 from app.models.user import User

@@ -16,3 +16,4 @@ class User(Base):
     bank_entities = relationship("BankEntity", back_populates="user")
     credit_cards = relationship("CreditCard", back_populates="user")
     investment_funds = relationship("InvestmentFund", back_populates="user")
+    payment_services = relationship("PaymentService", back_populates="user")
