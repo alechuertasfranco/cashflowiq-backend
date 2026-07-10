@@ -1,5 +1,7 @@
 # app/api/routes/recurring_transactions.py
 
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 
@@ -28,7 +30,15 @@ def _is_current_period_registered(db: Session, rule: RecurringTransaction) -> bo
     Registration advances next_execution_date forward by one period, so the
     just-registered transaction's date lands in [prev_date, next_execution_date).
     If the user deletes that transaction, this returns False again.
+
+    Once next_execution_date itself has arrived/passed, that window is stale — it
+    describes the period that was already paid ahead of time, not the new period
+    that just became due. Without this check, a rule paid early stays "Registrado"
+    forever once the month rolls over, hiding the button to register the new period.
     """
+    if rule.next_execution_date <= datetime.utcnow():
+        return False
+
     prev_date = retreat_date(rule.next_execution_date, rule.frequency)
     exists = (
         db.query(Transaction.id)
