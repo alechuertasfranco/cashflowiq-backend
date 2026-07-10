@@ -145,6 +145,23 @@ def _get_fund_or_404(fund_id: int, user_id: int, db: Session) -> InvestmentFund:
     return fund
 
 
+def _sync_current_value_from_snapshots(fund: InvestmentFund, db: Session) -> None:
+    """Keep current_value in lockstep with the most recent snapshot.
+
+    current_value used to be a field the user only set by hand when creating
+    the fund, so it never moved after that — "Valor actual" kept showing the
+    original number forever even after registering new monthly balances.
+    The latest snapshot (by date) is now the source of truth for it.
+    """
+    latest = (
+        db.query(InvestmentFundSnapshot)
+        .filter(InvestmentFundSnapshot.investment_fund_id == fund.id)
+        .order_by(InvestmentFundSnapshot.snapshot_date.desc())
+        .first()
+    )
+    fund.current_value = float(latest.value) if latest else None
+
+
 # GET /investment-funds/{fund_id}/snapshots
 @router.get("/{fund_id}/snapshots", response_model=list[InvestmentFundSnapshotResponse])
 def get_snapshots(
@@ -172,7 +189,7 @@ def create_snapshot(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _get_fund_or_404(fund_id, current_user.id, db)
+    fund = _get_fund_or_404(fund_id, current_user.id, db)
     new_snapshot = InvestmentFundSnapshot(
         investment_fund_id=fund_id,
         user_id=current_user.id,
@@ -180,6 +197,8 @@ def create_snapshot(
         value=snapshot.value,
     )
     db.add(new_snapshot)
+    db.flush()
+    _sync_current_value_from_snapshots(fund, db)
     db.commit()
     db.refresh(new_snapshot)
     return new_snapshot
@@ -193,7 +212,7 @@ def delete_snapshot(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    _get_fund_or_404(fund_id, current_user.id, db)
+    fund = _get_fund_or_404(fund_id, current_user.id, db)
     existing = (
         db.query(InvestmentFundSnapshot)
         .filter(
@@ -206,5 +225,7 @@ def delete_snapshot(
     if not existing:
         raise HTTPException(status_code=404, detail="Snapshot not found")
     db.delete(existing)
+    db.flush()
+    _sync_current_value_from_snapshots(fund, db)
     db.commit()
     return {"message": "Deleted successfully"}
