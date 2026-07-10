@@ -1,0 +1,8 @@
+{
+  "latest_version": "1.0.0",
+  "latest_build_number": 1,
+  "min_build_number": 1,
+  "apk_url": "https://35-188-52-241.sslip.io/releases/cashflowiq-1.0.0.apk",
+  "release_notes": "Primera versión con auto-actualización desde la app.",
+  "force_update": false
+}

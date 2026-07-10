@@ -1,9 +1,12 @@
 """app/main.py"""
 
 import logging
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from app.api.routes import (
     auth,
     bank_accounts,
@@ -21,6 +24,7 @@ from app.api.routes import (
     transaction_splits,
     payment_sources,
     payment_services,
+    app_version,
 )
 from app.services.recurring_executor import start_daily_scheduler
 
@@ -29,6 +33,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+
+# ---------------------------------------------------------------------------
+# Static APK releases (self-hosted in-app updates)
+# ---------------------------------------------------------------------------
+
+RELEASES_DIR = Path(__file__).resolve().parent.parent / "releases"
+RELEASES_DIR.mkdir(exist_ok=True)
+app.mount("/releases", StaticFiles(directory=str(RELEASES_DIR)), name="releases")
 
 # ---------------------------------------------------------------------------
 # CORS
@@ -76,3 +88,4 @@ app.include_router(contacts.router)
 app.include_router(transaction_splits.router)
 app.include_router(payment_sources.router)
 app.include_router(payment_services.router)
+app.include_router(app_version.router)

@@ -24,3 +24,7 @@ Thumbs.db
 
 # Keys
 app/core/config/serviceAccountKey.json
+
+# APK releases (self-hosted updates) - published on the NAS, not tracked in git
+releases/*.apk
+releases/version.json
