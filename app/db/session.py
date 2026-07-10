@@ -20,4 +20,4 @@ DATABASE_URL = f"postgresql+psycopg2://{_user}:{_password}@{_host}:{_port}/{_db}
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)  # pylint: disable=invalid-name

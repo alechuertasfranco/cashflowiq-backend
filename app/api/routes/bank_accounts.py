@@ -57,7 +57,7 @@ def get_most_used_accounts(
     usage = (
         db.query(
             BankAccount.id,
-            func.count(Transaction.id).label("usage_count"),
+            func.count(Transaction.id).label("usage_count"),  # pylint: disable=not-callable
         )
         .outerjoin(
             Transaction,
@@ -66,7 +66,7 @@ def get_most_used_accounts(
         )
         .filter(BankAccount.user_id == current_user.id)
         .group_by(BankAccount.id)
-        .order_by(func.count(Transaction.id).desc())
+        .order_by(func.count(Transaction.id).desc())  # pylint: disable=not-callable
         .limit(limit)
         .subquery()
     )

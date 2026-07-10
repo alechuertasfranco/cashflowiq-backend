@@ -13,7 +13,6 @@ from app.models.bank_account import BankAccount
 from app.schemas.transaction_split import (
     TransactionSplitResponse,
     SplitSettlementCreate,
-    SplitSettlementResponse,
 )
 from app.dependencies.current_user import get_current_user, get_db
 from app.models.user import User

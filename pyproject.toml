@@ -22,3 +22,15 @@ disable = [
 
 [tool.pylint.format]
 max-line-length = 150
+
+# FastAPI route handlers routinely take several Depends()/Query() params and
+# build multi-field response dicts, so the pylint defaults (5 args, 15
+# locals, 12 branches, 50 statements) are miscalibrated for this codebase's
+# API layer — not a sign the endpoints are actually unmaintainable. Sized to
+# comfortably cover current handlers with modest headroom, not unlimited.
+[tool.pylint.design]
+max-args = 10
+max-positional-arguments = 10
+max-locals = 30
+max-branches = 20
+max-statements = 55

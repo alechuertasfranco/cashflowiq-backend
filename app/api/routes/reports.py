@@ -185,7 +185,7 @@ def get_by_category_report(
     tx_type = (kind or "EXPENSE").upper()
     month_start, month_end = _month_bounds(year, month)
 
-    ParentCategory = aliased(Category)
+    ParentCategory = aliased(Category)  # pylint: disable=invalid-name
 
     rows = (
         db.query(
@@ -248,7 +248,7 @@ def get_by_category_report(
 
 
 @router.get("/by-entity", response_model=List[EntityReport])
-def get_by_entity_report(  # pylint: disable=too-many-locals
+def get_by_entity_report(
     year: Optional[int] = Query(default=None),
     month: Optional[int] = Query(default=None),
     limit: int = 50,
@@ -483,7 +483,7 @@ def get_budget_vs_actual(
 
     month_start, month_end = _month_bounds(year, month)
 
-    ParentCategory = aliased(Category)
+    ParentCategory = aliased(Category)  # pylint: disable=invalid-name
 
     # All budgets for this user with their category and currency details.
     budget_rows = (

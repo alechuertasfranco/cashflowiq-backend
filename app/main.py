@@ -50,7 +50,7 @@ app.add_middleware(
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch all unhandled exceptions and return a generic 500 response."""
-    logger.exception("Unhandled exception for %s %s", request.method, request.url)
+    logger.error("Unhandled exception for %s %s", request.method, request.url, exc_info=exc)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 

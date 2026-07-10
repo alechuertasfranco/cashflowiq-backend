@@ -106,9 +106,13 @@ def run_due_recurring_transactions(db: Session) -> int:
     due_rules = (
         db.query(RecurringTransaction)
         .filter(
-            RecurringTransaction.is_active == True,  # noqa: E712
+            # SQLAlchemy overloads `==`/`is` differently to build query
+            # expressions — `is True`/`is None` here would perform a plain
+            # Python identity check instead of a SQL comparison and silently
+            # break the filter.
+            RecurringTransaction.is_active == True,  # noqa: E712  pylint: disable=singleton-comparison
             RecurringTransaction.next_execution_date <= today + timedelta(days=1),
-            RecurringTransaction.notification_days_before == None,  # noqa: E711
+            RecurringTransaction.notification_days_before == None,  # noqa: E711  pylint: disable=singleton-comparison
         )
         .all()
     )
@@ -187,7 +191,9 @@ def _scheduler_loop(interval_seconds: int) -> None:
         try:
             count = run_due_recurring_transactions(db)
             logger.info("Recurring executor: %d transaction(s) created.", count)
-        except Exception:
+        except Exception:  # pylint: disable=broad-exception-caught
+            # Must not let any unexpected error kill this daemon thread —
+            # it needs to keep retrying on its 24h interval regardless.
             logger.exception("Recurring executor encountered an error.")
             db.rollback()
         finally:

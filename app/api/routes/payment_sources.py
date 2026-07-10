@@ -34,7 +34,7 @@ def get_most_used_payment_sources(
             BankAccount.id,
             BankAccount.name,
             BankAccount.bank_entity_id,
-            func.count(Transaction.id).label("usage_count"),
+            func.count(Transaction.id).label("usage_count"),  # pylint: disable=not-callable
         )
         .outerjoin(
             Transaction,
@@ -51,7 +51,7 @@ def get_most_used_payment_sources(
             CreditCard.id,
             CreditCard.name,
             CreditCard.bank_entity_id,
-            func.count(Transaction.id).label("usage_count"),
+            func.count(Transaction.id).label("usage_count"),  # pylint: disable=not-callable
         )
         .outerjoin(
             Transaction,

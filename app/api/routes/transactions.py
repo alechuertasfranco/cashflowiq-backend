@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.transaction import Transaction
@@ -44,7 +44,7 @@ def _get_or_404(db: Session, tx_id: int, user_id: int) -> Transaction:
 # 📥 GET TRANSACTIONS
 @router.get("", response_model=list[TransactionResponse])
 def list_transactions(
-    type: Optional[str] = None,
+    tx_type: Optional[str] = Query(default=None, alias="type"),
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
     category_id: Optional[int] = None,
@@ -60,8 +60,8 @@ def list_transactions(
         .filter(Transaction.user_id == current_user.id)
     )
 
-    if type:
-        query = query.filter(Transaction.type == type.upper())
+    if tx_type:
+        query = query.filter(Transaction.type == tx_type.upper())
     if from_date:
         query = query.filter(Transaction.date >= datetime.fromisoformat(from_date))
     if to_date:
