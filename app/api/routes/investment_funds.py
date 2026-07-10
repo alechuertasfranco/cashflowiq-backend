@@ -162,6 +162,31 @@ def _sync_current_value_from_snapshots(fund: InvestmentFund, db: Session) -> Non
     fund.current_value = float(latest.value) if latest else None
 
 
+# POST /investment-funds/{fund_id}/sync-current-value
+@router.post("/{fund_id}/sync-current-value", response_model=InvestmentFundResponse)
+def sync_current_value(
+    fund_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Re-align current_value with the latest snapshot.
+
+    current_value can drift from the snapshots if it was set by hand via
+    the edit-fund form, or from data created before snapshots existed.
+    Snapshots are the source of truth, so this forces current_value back
+    in line with them on demand (called by the detail screen on load).
+    """
+    fund = _get_fund_or_404(fund_id, current_user.id, db)
+    _sync_current_value_from_snapshots(fund, db)
+    db.commit()
+    db.refresh(fund)
+
+    _ = fund.bank_entity
+    _ = fund.currency
+
+    return fund
+
+
 # GET /investment-funds/{fund_id}/snapshots
 @router.get("/{fund_id}/snapshots", response_model=list[InvestmentFundSnapshotResponse])
 def get_snapshots(
