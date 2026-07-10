@@ -2,10 +2,22 @@
 
 from typing import Optional
 from decimal import Decimal
-from datetime import datetime
-from pydantic import BaseModel
+from datetime import datetime, timezone
+from pydantic import BaseModel, field_serializer
 
 from app.schemas.contact import ContactResponse
+
+
+def _as_utc_iso(value: Optional[datetime]) -> Optional[str]:
+    """Serialize a datetime that is stored naive (via datetime.utcnow) as an
+    explicit UTC ISO string. Without the 'Z'/offset suffix, clients like
+    Dart's DateTime.parse silently treat the UTC clock values as local time,
+    which shows the wrong time (and sometimes the wrong day)."""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.isoformat()
 
 
 class SplitItemCreate(BaseModel):
@@ -28,6 +40,10 @@ class TransactionSplitResponse(BaseModel):
     class Config:
         from_attributes = True
 
+    @field_serializer('created_at')
+    def _serialize_created_at(self, value: Optional[datetime]) -> Optional[str]:
+        return _as_utc_iso(value)
+
 
 class SplitSettlementCreate(BaseModel):
     amount: Decimal
@@ -44,3 +60,7 @@ class SplitSettlementResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_serializer('date')
+    def _serialize_date(self, value: Optional[datetime]) -> Optional[str]:
+        return _as_utc_iso(value)
