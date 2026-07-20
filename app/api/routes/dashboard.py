@@ -8,6 +8,7 @@ from sqlalchemy import func, case
 from sqlalchemy.orm import Session, joinedload
 
 from app.dependencies.current_user import get_current_user, get_db
+from app.models.account_monthly_balance import AccountMonthlyBalance
 from app.models.bank_account import BankAccount
 from app.models.credit_card import CreditCard
 from app.models.transaction import Transaction
@@ -99,54 +100,123 @@ def get_dashboard_summary(
     all_time_income = all_time_totals.all_income or Decimal("0")
     all_time_expense = all_time_totals.all_expense or Decimal("0")
 
-    # --- All-time per-account running balances ---
+    # --- Per-account running balances, via monthly-balance snapshots ---
+    #
+    # Historically this summed every transaction the account ever had. That's
+    # replaced here with: closed-month snapshot (up to the end of last month)
+    # + this month's deltas only — same result, bounded query cost regardless
+    # of account age. Brand-new accounts with no closed-month snapshot yet
+    # fall back to the original unbounded all-time sum (identical to before).
     accounts = (
         db.query(BankAccount)
         .options(joinedload(BankAccount.currency), joinedload(BankAccount.bank_entity))
         .filter(BankAccount.user_id == current_user.id)
         .all()
     )
+    account_ids = [account.id for account in accounts]
 
-    # Aggregate credits to each account across all time.
-    # INCOME: money flowing in from outside (salary, freelance, etc.) — to_account_id is set.
-    # TRANSFER: money arriving from another internal account — to_account_id is set.
-    # Credit-card payment transfers (to_credit_card_id set, to_account_id NULL) are
-    # correctly excluded here because to_account_id IS NOT NULL filters them out.
-    credits_rows = (
-        db.query(
-            Transaction.to_account_id.label("account_id"),
-            func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total"),
-        )
-        .filter(
-            Transaction.user_id == current_user.id,
-            Transaction.type.in_(["INCOME", "TRANSFER"]),
-            Transaction.to_account_id.isnot(None),
-        )
-        .group_by(Transaction.to_account_id)
-        .all()
-    )
-    credits_map = {row.account_id: row.total for row in credits_rows}
+    if now.month == 1:
+        prev_year, prev_month = now.year - 1, 12
+    else:
+        prev_year, prev_month = now.year, now.month - 1
 
-    # Aggregate debits from each account across all time.
-    # EXPENSE: money leaving the account for external spending.
-    # TRANSFER: money leaving the account to another account OR to a credit card
-    #   (credit-card payment: from_account_id is set, to_credit_card_id is set,
-    #    to_account_id is NULL — this is correctly captured here because we only
-    #    require from_account_id IS NOT NULL).
-    debits_rows = (
-        db.query(
-            Transaction.from_account_id.label("account_id"),
-            func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total"),
+    snapshot_map: dict[int, Decimal] = {}
+    if account_ids:
+        snapshot_rows = (
+            db.query(
+                AccountMonthlyBalance.account_id,
+                AccountMonthlyBalance.final_balance,
+            )
+            .filter(
+                AccountMonthlyBalance.account_id.in_(account_ids),
+                AccountMonthlyBalance.year == prev_year,
+                AccountMonthlyBalance.month == prev_month,
+            )
+            .all()
         )
-        .filter(
-            Transaction.user_id == current_user.id,
-            Transaction.type.in_(["EXPENSE", "TRANSFER"]),
-            Transaction.from_account_id.isnot(None),
+        snapshot_map = {row.account_id: row.final_balance for row in snapshot_rows}
+
+    snapshotted_ids = [aid for aid in account_ids if aid in snapshot_map]
+    unsnapshotted_ids = [aid for aid in account_ids if aid not in snapshot_map]
+
+    credits_map: dict[int, Decimal] = {}
+    debits_map: dict[int, Decimal] = {}
+
+    # Snapshotted accounts: only need this month's deltas on top of the
+    # snapshot — bounded by month_start, unlike the all-time query below.
+    if snapshotted_ids:
+        credits_rows = (
+            db.query(
+                Transaction.to_account_id.label("account_id"),
+                func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total"),
+            )
+            .filter(
+                Transaction.user_id == current_user.id,
+                Transaction.type.in_(["INCOME", "TRANSFER"]),
+                Transaction.to_account_id.in_(snapshotted_ids),
+                Transaction.date >= month_start,
+            )
+            .group_by(Transaction.to_account_id)
+            .all()
         )
-        .group_by(Transaction.from_account_id)
-        .all()
-    )
-    debits_map = {row.account_id: row.total for row in debits_rows}
+        credits_map.update({row.account_id: row.total for row in credits_rows})
+
+        debits_rows = (
+            db.query(
+                Transaction.from_account_id.label("account_id"),
+                func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total"),
+            )
+            .filter(
+                Transaction.user_id == current_user.id,
+                Transaction.type.in_(["EXPENSE", "TRANSFER"]),
+                Transaction.from_account_id.in_(snapshotted_ids),
+                Transaction.date >= month_start,
+            )
+            .group_by(Transaction.from_account_id)
+            .all()
+        )
+        debits_map.update({row.account_id: row.total for row in debits_rows})
+
+    # Unsnapshotted accounts (no closed month yet): unchanged all-time sum,
+    # identical in shape to the pre-snapshot query, just scoped to these ids.
+    if unsnapshotted_ids:
+        credits_rows_all_time = (
+            db.query(
+                Transaction.to_account_id.label("account_id"),
+                func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total"),
+            )
+            .filter(
+                Transaction.user_id == current_user.id,
+                Transaction.type.in_(["INCOME", "TRANSFER"]),
+                Transaction.to_account_id.in_(unsnapshotted_ids),
+            )
+            .group_by(Transaction.to_account_id)
+            .all()
+        )
+        credits_map.update({row.account_id: row.total for row in credits_rows_all_time})
+
+        debits_rows_all_time = (
+            db.query(
+                Transaction.from_account_id.label("account_id"),
+                func.coalesce(func.sum(Transaction.amount), Decimal("0")).label("total"),
+            )
+            .filter(
+                Transaction.user_id == current_user.id,
+                Transaction.type.in_(["EXPENSE", "TRANSFER"]),
+                Transaction.from_account_id.in_(unsnapshotted_ids),
+            )
+            .group_by(Transaction.from_account_id)
+            .all()
+        )
+        debits_map.update({row.account_id: row.total for row in debits_rows_all_time})
+
+    def _account_balance(account: BankAccount) -> Decimal:
+        base = snapshot_map.get(account.id, account.initial_amount)
+        return (
+            base
+            + credits_map.get(account.id, Decimal("0"))
+            - debits_map.get(account.id, Decimal("0"))
+        )
 
     account_balances = sorted(
         [
@@ -155,11 +225,7 @@ def get_dashboard_summary(
                 name=account.name,
                 currency_code=account.currency.code,
                 bank_entity_code=account.bank_entity.code,
-                balance=(
-                    account.initial_amount
-                    + credits_map.get(account.id, Decimal("0"))
-                    - debits_map.get(account.id, Decimal("0"))
-                ),
+                balance=_account_balance(account),
             )
             for account in accounts
         ],

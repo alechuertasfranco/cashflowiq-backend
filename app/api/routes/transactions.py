@@ -13,8 +13,72 @@ from app.models.transaction_split import TransactionSplit
 from app.schemas.transaction import TransactionCreate, TransactionUpdate, TransactionResponse
 from app.dependencies.current_user import get_current_user, get_db
 from app.models.user import User
+from app.models.account_monthly_balance import AccountMonthlyBalance
+from app.services.account_monthly_balance_service import recompute_account_from_month
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
+
+
+def _recompute_affected_accounts(db: Session, pairs: set[tuple[int, int, int]]) -> None:
+    """
+    Recompute monthly-balance snapshots for a deduplicated set of
+    (account_id, year, month) pairs affected by a transaction write, then
+    commit those snapshot changes in a second, separate commit.
+
+    For each affected account, the recompute doesn't just start at the
+    transaction's own month — it also starts from the month right after
+    that account's latest existing snapshot, whichever is earlier. A plain
+    same-day transaction lands in the still-open current month, which by
+    itself is a no-op for the snapshot chain; without this, an account that
+    only ever gets "today"-dated transactions would never have last month's
+    snapshot created once the calendar rolls over, and the dashboard would
+    keep falling back to the unbounded all-time sum forever. Starting from
+    latest-snapshot+1 makes every write also catch up any idle month gap.
+
+    Safe to call with pairs referring to open/current months (a no-op) or
+    already-correct closed months (idempotent) — callers don't need to
+    pre-filter, just deduplicate.
+    """
+    if not pairs:
+        return
+
+    account_ids = {account_id for account_id, _year, _month in pairs}
+    accounts = {
+        acc.id: acc
+        for acc in db.query(BankAccount).filter(BankAccount.id.in_(account_ids)).all()
+    }
+
+    starts: dict[int, tuple[int, int]] = {}
+    for account_id, year, month in pairs:
+        current = starts.get(account_id)
+        if current is None or (year, month) < current:
+            starts[account_id] = (year, month)
+
+    for account_id in account_ids:
+        account = accounts.get(account_id)
+        if account is None:
+            continue
+
+        latest_snapshot = (
+            db.query(AccountMonthlyBalance.year, AccountMonthlyBalance.month)
+            .filter(AccountMonthlyBalance.account_id == account_id)
+            .order_by(AccountMonthlyBalance.year.desc(), AccountMonthlyBalance.month.desc())
+            .first()
+        )
+        if latest_snapshot is not None:
+            next_year, next_month = latest_snapshot.year, latest_snapshot.month
+            if next_month == 12:
+                next_year, next_month = next_year + 1, 1
+            else:
+                next_month += 1
+            candidate = (next_year, next_month)
+            if candidate < starts[account_id]:
+                starts[account_id] = candidate
+
+        start_year, start_month = starts[account_id]
+        recompute_account_from_month(db, account, start_year, start_month)
+
+    db.commit()
 
 
 def _enrich(tx: Transaction) -> dict:
@@ -192,6 +256,15 @@ def create_transaction(
             db.add(split)
         db.commit()
 
+    # Recompute monthly-balance snapshots for any bank account(s) touched by
+    # this new transaction (no-op for pure credit-card/investment-fund txs).
+    affected_pairs: set[tuple[int, int, int]] = set()
+    if tx.from_account_id is not None:
+        affected_pairs.add((tx.from_account_id, tx.date.year, tx.date.month))
+    if tx.to_account_id is not None:
+        affected_pairs.add((tx.to_account_id, tx.date.year, tx.date.month))
+    _recompute_affected_accounts(db, affected_pairs)
+
     # Eager-load relationships needed for the response.
     tx = (
         db.query(Transaction)
@@ -223,6 +296,15 @@ def update_transaction(
 ):
     tx = _get_or_404(db, tx_id, current_user.id)
 
+    # Capture pre-mutation state so we can recompute snapshots for every
+    # (account, month) this transaction touched BEFORE the edit, in addition
+    # to wherever it ends up AFTER — an edit can move a transaction between
+    # accounts and/or months (e.g. backdating it into a prior, already
+    # closed month).
+    old_from_account_id = tx.from_account_id
+    old_to_account_id = tx.to_account_id
+    old_date = tx.date
+
     if data.type is not None:
         tx.type = data.type.upper()
     if data.amount is not None:
@@ -251,6 +333,19 @@ def update_transaction(
     db.commit()
     db.refresh(tx)
 
+    # Recompute monthly-balance snapshots for every (account, month) pair
+    # this transaction touched, before and after the edit.
+    affected_pairs: set[tuple[int, int, int]] = set()
+    for account_id, date in (
+        (old_from_account_id, old_date),
+        (old_to_account_id, old_date),
+        (tx.from_account_id, tx.date),
+        (tx.to_account_id, tx.date),
+    ):
+        if account_id is not None:
+            affected_pairs.add((account_id, date.year, date.month))
+    _recompute_affected_accounts(db, affected_pairs)
+
     # Re-fetch with eager loads so currency is populated.
     tx = (
         db.query(Transaction)
@@ -277,7 +372,21 @@ def delete_transaction(
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
+    # Capture account/date state before the row is gone.
+    from_account_id = tx.from_account_id
+    to_account_id = tx.to_account_id
+    date = tx.date
+
     db.delete(tx)
     db.commit()
+
+    # Recompute monthly-balance snapshots for any bank account(s) that were
+    # touched by the now-deleted transaction.
+    affected_pairs: set[tuple[int, int, int]] = set()
+    if from_account_id is not None:
+        affected_pairs.add((from_account_id, date.year, date.month))
+    if to_account_id is not None:
+        affected_pairs.add((to_account_id, date.year, date.month))
+    _recompute_affected_accounts(db, affected_pairs)
 
     return {"message": "Deleted successfully"}
