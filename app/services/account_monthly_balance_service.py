@@ -146,6 +146,68 @@ def recompute_account_month(
     return snapshot
 
 
+def recompute_affected_accounts(db: Session, pairs: set[tuple[int, int, int]]) -> None:
+    """
+    Recompute monthly-balance snapshots for a deduplicated set of
+    (account_id, year, month) pairs affected by a transaction write, then
+    commit those snapshot changes in a second, separate commit.
+
+    For each affected account, the recompute doesn't just start at the
+    transaction's own month — it also starts from the month right after
+    that account's latest existing snapshot, whichever is earlier. A plain
+    same-day transaction lands in the still-open current month, which by
+    itself is a no-op for the snapshot chain; without this, an account that
+    only ever gets "today"-dated transactions would never have last month's
+    snapshot created once the calendar rolls over, and the dashboard would
+    keep falling back to the unbounded all-time sum forever. Starting from
+    latest-snapshot+1 makes every write also catch up any idle month gap.
+
+    Safe to call with pairs referring to open/current months (a no-op) or
+    already-correct closed months (idempotent) — callers don't need to
+    pre-filter, just deduplicate.
+    """
+    if not pairs:
+        return
+
+    account_ids = {account_id for account_id, _year, _month in pairs}
+    accounts = {
+        acc.id: acc
+        for acc in db.query(BankAccount).filter(BankAccount.id.in_(account_ids)).all()
+    }
+
+    starts: dict[int, tuple[int, int]] = {}
+    for account_id, year, month in pairs:
+        current = starts.get(account_id)
+        if current is None or (year, month) < current:
+            starts[account_id] = (year, month)
+
+    for account_id in account_ids:
+        account = accounts.get(account_id)
+        if account is None:
+            continue
+
+        latest_snapshot = (
+            db.query(AccountMonthlyBalance.year, AccountMonthlyBalance.month)
+            .filter(AccountMonthlyBalance.account_id == account_id)
+            .order_by(AccountMonthlyBalance.year.desc(), AccountMonthlyBalance.month.desc())
+            .first()
+        )
+        if latest_snapshot is not None:
+            next_year, next_month = latest_snapshot.year, latest_snapshot.month
+            if next_month == 12:
+                next_year, next_month = next_year + 1, 1
+            else:
+                next_month += 1
+            candidate = (next_year, next_month)
+            if candidate < starts[account_id]:
+                starts[account_id] = candidate
+
+        start_year, start_month = starts[account_id]
+        recompute_account_from_month(db, account, start_year, start_month)
+
+    db.commit()
+
+
 def recompute_account_from_month(db: Session, account: BankAccount, year: int, month: int) -> None:
     """
     Recompute and chain snapshots for every closed month starting at

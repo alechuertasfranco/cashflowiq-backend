@@ -69,11 +69,17 @@ class Transaction(Base):
         Integer, ForeignKey("recurring_transactions.id"), nullable=True, index=True
     )
 
+    # Set when this transaction was created by a bank-statement import batch
+    import_batch_id = Column(
+        Integer, ForeignKey("statement_imports.id"), nullable=True, index=True
+    )
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     user = relationship("User", backref="transactions")
     category = relationship("Category", back_populates="transactions")
     currency = relationship("Currency")
+    import_batch = relationship("StatementImport", back_populates="transactions")
 
     from_account = relationship("BankAccount", foreign_keys=[from_account_id])
     to_account = relationship("BankAccount", foreign_keys=[to_account_id])

@@ -13,6 +13,7 @@ from app.models.investment_fund_snapshot import InvestmentFundSnapshot
 from app.models.monthly_balance import MonthlyBalance
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.split_settlement import SplitSettlement
+from app.models.statement_import import StatementImport
 from app.models.transaction import Transaction
 from app.models.transaction_split import TransactionSplit
 from app.models.payment_service import PaymentService
