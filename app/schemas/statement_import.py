@@ -14,9 +14,16 @@ class StatementLineCreate(BaseModel):
 
     date: datetime
     amount: Decimal
-    type: str  # INCOME | EXPENSE
+    type: str  # INCOME | EXPENSE | TRANSFER
     description: Optional[str] = None
     category_id: Optional[int] = None
+
+    # For TRANSFER lines: whether the money came INTO the statement account
+    # (True) or left it (False). Derived from the statement's abono/cargo
+    # column. A statement-import transfer is recorded one-sided (only the
+    # statement account's leg) so importing each account's statement never
+    # double-counts the same transfer.
+    is_inflow: bool = True
 
 
 class StatementImportCreate(BaseModel):

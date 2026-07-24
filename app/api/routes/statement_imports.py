@@ -71,7 +71,7 @@ def create_statement_import(
     count = 0
     for item in data.items:
         tx_type = item.type.upper()
-        if tx_type not in ("INCOME", "EXPENSE"):
+        if tx_type not in ("INCOME", "EXPENSE", "TRANSFER"):
             raise HTTPException(
                 status_code=400,
                 detail=f"Unsupported statement line type: {item.type}",
@@ -79,10 +79,17 @@ def create_statement_import(
 
         from_account_id = None
         to_account_id = None
+        category_id = item.category_id
         if tx_type == "INCOME":
             to_account_id = account.id
-        else:  # EXPENSE
+        elif tx_type == "EXPENSE":
             from_account_id = account.id
+        else:  # TRANSFER — one-sided: only the statement account's leg.
+            if item.is_inflow:
+                to_account_id = account.id
+            else:
+                from_account_id = account.id
+            category_id = None  # transfers aren't categorized
 
         tx = Transaction(
             type=tx_type,
@@ -92,7 +99,7 @@ def create_statement_import(
             user_id=current_user.id,
             from_account_id=from_account_id,
             to_account_id=to_account_id,
-            category_id=item.category_id,
+            category_id=category_id,
             currency_id=account.currency_id,
             import_batch_id=batch.id,
         )
