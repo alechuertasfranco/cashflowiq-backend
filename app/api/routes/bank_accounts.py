@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.bank_account import BankAccount
 from app.models.transaction import Transaction
+from app.models.account_monthly_balance import AccountMonthlyBalance
 from app.schemas.bank_account import (
     BankAccountCreate,
     BankAccountUpdate,
@@ -122,6 +123,59 @@ def get_account(
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
     return _to_response(db, account)
+
+
+# GET MONTHLY BALANCE SNAPSHOT (for statement reconciliation)
+@router.get("/{account_id}/monthly-balance")
+def get_account_monthly_balance(
+    account_id: int,
+    year: int,
+    month: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Return the closed-month snapshot for (account, year, month) if it exists.
+
+    Only months strictly before the current UTC month are snapshotted (a
+    "closed" month). `closed` is True only when such a snapshot exists — the
+    statement-import flow uses `final_balance` to verify the statement's closing
+    balance agrees with the app's records before finalizing the import.
+    """
+    account = (
+        db.query(BankAccount)
+        .filter(BankAccount.id == account_id, BankAccount.user_id == current_user.id)
+        .first()
+    )
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    snapshot = (
+        db.query(AccountMonthlyBalance)
+        .filter(
+            AccountMonthlyBalance.account_id == account_id,
+            AccountMonthlyBalance.year == year,
+            AccountMonthlyBalance.month == month,
+        )
+        .first()
+    )
+
+    if snapshot is None:
+        return {
+            "year": year,
+            "month": month,
+            "closed": False,
+            "initial_balance": None,
+            "final_balance": None,
+        }
+
+    return {
+        "year": year,
+        "month": month,
+        "closed": True,
+        "initial_balance": float(snapshot.initial_balance),
+        "final_balance": float(snapshot.final_balance),
+    }
 
 
 # CREATE ACCOUNT
