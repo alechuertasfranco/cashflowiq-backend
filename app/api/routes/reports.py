@@ -15,7 +15,9 @@ from app.models.bank_entity import BankEntity
 from app.models.budget import Budget
 from app.models.category import Category
 from app.models.currency import Currency
+from app.models.split_settlement import SplitSettlement
 from app.models.transaction import Transaction
+from app.models.transaction_split import TransactionSplit
 from app.models.user import User
 from app.schemas.reports import (
     BudgetVsActualItem,
@@ -39,6 +41,133 @@ def _month_bounds(year: int, month: int):
     else:
         month_end = datetime(year, month + 1, 1, tzinfo=timezone.utc)
     return month_start, month_end
+
+
+# ---------------------------------------------------------------------------
+# Split reimbursement netting
+#
+# When a shared expense is paid in full by the user, the whole amount is booked
+# as an EXPENSE in a category, and each contact's repayment is booked as an
+# INCOME transaction (see settle_split in transaction_splits.py).  Left as-is,
+# that double-counts: the category shows the full amount as the user's expense
+# and the repayment inflates income.  Economically the repaid portion was never
+# the user's expense — it was an advance the user recovered.
+#
+# The helpers below treat each split settlement as a *contra-expense* against
+# the ORIGINAL expense (its category / currency / month), so expense reports
+# reflect the user's real share.  Netting is anchored to the original expense's
+# month, not the repayment's month, so a category never goes negative in an
+# unrelated month and the reduction shows up where the inflated number lives.
+#
+# by-entity is deliberately NOT netted: it reports actual money movement per
+# bank account, where the full payment and the incoming repayment both really
+# happened.
+# ---------------------------------------------------------------------------
+
+
+def _reimbursement_tx_subquery(db: Session, user_id: int):
+    """IDs of INCOME transactions that are split repayments for this user.
+
+    Used to exclude repayments from income totals (they are recovered advances,
+    not new income)."""
+    orig_tx = aliased(Transaction)
+    return (
+        db.query(SplitSettlement.transaction_id)
+        .join(TransactionSplit, TransactionSplit.id == SplitSettlement.split_id)
+        .join(orig_tx, orig_tx.id == TransactionSplit.transaction_id)
+        .filter(
+            orig_tx.user_id == user_id,
+            SplitSettlement.transaction_id.isnot(None),
+        )
+    )
+
+
+def _settlements_by_category(db: Session, user_id: int, month_start, month_end):
+    """Sum of split settlements grouped by the ORIGINAL expense's
+    (category_id, currency_code), for expenses dated within the month.
+
+    Returns {(category_id, currency_code): Decimal}."""
+    orig_tx = aliased(Transaction)
+    rows = (
+        db.query(
+            orig_tx.category_id.label("category_id"),
+            Currency.code.label("currency_code"),
+            func.coalesce(func.sum(SplitSettlement.amount), Decimal("0")).label("total"),
+        )
+        .join(TransactionSplit, TransactionSplit.id == SplitSettlement.split_id)
+        .join(orig_tx, orig_tx.id == TransactionSplit.transaction_id)
+        .join(Currency, Currency.id == orig_tx.currency_id)
+        .filter(
+            orig_tx.user_id == user_id,
+            orig_tx.type == "EXPENSE",
+            orig_tx.category_id.isnot(None),
+            orig_tx.date >= month_start,
+            orig_tx.date < month_end,
+        )
+        .group_by(orig_tx.category_id, Currency.code)
+        .all()
+    )
+    return {(r.category_id, r.currency_code): r.total for r in rows}
+
+
+def _settlements_by_category_id(db: Session, user_id: int, month_start, month_end):
+    """Sum of split settlements grouped only by the ORIGINAL expense's
+    category_id (across currencies), for expenses dated within the month.
+
+    Returns {category_id: Decimal}."""
+    orig_tx = aliased(Transaction)
+    rows = (
+        db.query(
+            orig_tx.category_id.label("category_id"),
+            func.coalesce(func.sum(SplitSettlement.amount), Decimal("0")).label("total"),
+        )
+        .join(TransactionSplit, TransactionSplit.id == SplitSettlement.split_id)
+        .join(orig_tx, orig_tx.id == TransactionSplit.transaction_id)
+        .filter(
+            orig_tx.user_id == user_id,
+            orig_tx.type == "EXPENSE",
+            orig_tx.category_id.isnot(None),
+            orig_tx.date >= month_start,
+            orig_tx.date < month_end,
+        )
+        .group_by(orig_tx.category_id)
+        .all()
+    )
+    return {r.category_id: r.total for r in rows}
+
+
+def _settlements_by_currency_fixed(db: Session, user_id: int, month_start, month_end):
+    """Sum of split settlements grouped by the ORIGINAL expense's currency and
+    is_fixed flag, for expenses dated within the month.
+
+    Returns {currency_code: {"fixed": Decimal, "variable": Decimal, "total": Decimal}}."""
+    orig_tx = aliased(Transaction)
+    rows = (
+        db.query(
+            Currency.code.label("currency_code"),
+            orig_tx.is_fixed.label("is_fixed"),
+            func.coalesce(func.sum(SplitSettlement.amount), Decimal("0")).label("total"),
+        )
+        .join(TransactionSplit, TransactionSplit.id == SplitSettlement.split_id)
+        .join(orig_tx, orig_tx.id == TransactionSplit.transaction_id)
+        .join(Currency, Currency.id == orig_tx.currency_id)
+        .filter(
+            orig_tx.user_id == user_id,
+            orig_tx.type == "EXPENSE",
+            orig_tx.date >= month_start,
+            orig_tx.date < month_end,
+        )
+        .group_by(Currency.code, orig_tx.is_fixed)
+        .all()
+    )
+    out: dict[str, dict] = defaultdict(
+        lambda: {"fixed": Decimal("0"), "variable": Decimal("0"), "total": Decimal("0")}
+    )
+    for r in rows:
+        bucket = "fixed" if r.is_fixed else "variable"
+        out[r.currency_code][bucket] += r.total
+        out[r.currency_code]["total"] += r.total
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -66,6 +195,10 @@ def get_cashflow_report(
 
     month_start, month_end = _month_bounds(year, month)
 
+    # Split repayments are booked as INCOME but are recovered advances, not new
+    # income — exclude them from income totals.
+    reimbursement_tx = _reimbursement_tx_subquery(db, current_user.id)
+
     rows = (
         db.query(
             Currency.id.label("currency_id"),
@@ -74,7 +207,11 @@ def get_cashflow_report(
             func.coalesce(
                 func.sum(
                     case(
-                        (Transaction.type == "INCOME", Transaction.amount),
+                        (
+                            (Transaction.type == "INCOME")
+                            & (~Transaction.id.in_(reimbursement_tx)),
+                            Transaction.amount,
+                        ),
                         else_=Decimal("0"),
                     )
                 ),
@@ -124,12 +261,22 @@ def get_cashflow_report(
         .all()
     )
 
+    # Reimbursements are contra-expenses: subtract them from the matching
+    # expense buckets so expense reflects the user's real share.
+    settlements = _settlements_by_currency_fixed(db, current_user.id, month_start, month_end)
+
     results = []
     for row in rows:
+        reimbursed = settlements.get(row.currency_code)
         total_income = row.total_income or Decimal("0")
         total_expense = row.total_expense or Decimal("0")
         fixed_expense = row.fixed_expense or Decimal("0")
         variable_expense = row.variable_expense or Decimal("0")
+
+        if reimbursed:
+            total_expense = max(Decimal("0"), total_expense - reimbursed["total"])
+            fixed_expense = max(Decimal("0"), fixed_expense - reimbursed["fixed"])
+            variable_expense = max(Decimal("0"), variable_expense - reimbursed["variable"])
 
         if total_income > 0:
             savings_rate = float((total_income - total_expense) / total_income * 100)
@@ -218,10 +365,21 @@ def get_by_category_report(
         .all()
     )
 
-    # Compute per-currency grand totals so percentage is within each currency.
-    currency_totals: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    # Net out split repayments: subtract each category's reimbursed amount so
+    # the total reflects the user's real share of shared expenses. A category
+    # that is fully reimbursed is dropped — it is no longer the user's expense.
+    settlements = _settlements_by_category(db, current_user.id, month_start, month_end)
+    net_rows: list[tuple] = []
     for r in rows:
-        currency_totals[r.currency_code] += r.total
+        reimbursed = settlements.get((r.category_id, r.currency_code), Decimal("0"))
+        net_total = r.total - reimbursed
+        if net_total > 0:
+            net_rows.append((r, net_total))
+
+    # Compute per-currency grand totals (on net) so percentage is within each currency.
+    currency_totals: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    for r, net_total in net_rows:
+        currency_totals[r.currency_code] += net_total
 
     return [
         CategoryReport(
@@ -231,14 +389,14 @@ def get_by_category_report(
             parent_category_name=r.parent_category_name,
             currency_code=r.currency_code,
             currency_symbol=r.currency_symbol,
-            total=r.total,
+            total=net_total,
             percentage=(
-                float(r.total / currency_totals[r.currency_code] * 100)
+                float(net_total / currency_totals[r.currency_code] * 100)
                 if currency_totals[r.currency_code] > 0
                 else 0.0
             ),
         )
-        for r in rows
+        for r, net_total in net_rows
     ]
 
 
@@ -401,6 +559,10 @@ def get_monthly_trend(
             y -= 1
     periods.reverse()  # oldest first → newest last
 
+    # Split repayments are booked as INCOME but are recovered advances, not new
+    # income — exclude them from income totals.
+    reimbursement_tx = _reimbursement_tx_subquery(db, current_user.id)
+
     results: list[MonthlyTrendPoint] = []
 
     for period_year, period_month in periods:
@@ -413,7 +575,11 @@ def get_monthly_trend(
                 func.coalesce(
                     func.sum(
                         case(
-                            (Transaction.type == "INCOME", Transaction.amount),
+                            (
+                                (Transaction.type == "INCOME")
+                                & (~Transaction.id.in_(reimbursement_tx)),
+                                Transaction.amount,
+                            ),
                             else_=Decimal("0"),
                         )
                     ),
@@ -439,9 +605,18 @@ def get_monthly_trend(
             .all()
         )
 
+        # Net split repayments out of expense (contra-expense), anchored to the
+        # original expense's month.
+        settlements = _settlements_by_currency_fixed(
+            db, current_user.id, period_start, period_end
+        )
+
         for row in rows:
+            reimbursed = settlements.get(row.currency_code)
             income = row.total_income or Decimal("0")
             expense = row.total_expense or Decimal("0")
+            if reimbursed:
+                expense = max(Decimal("0"), expense - reimbursed["total"])
             results.append(
                 MonthlyTrendPoint(
                     year=period_year,
@@ -537,6 +712,13 @@ def get_budget_vs_actual(
         .all()
     )
     spending_map: dict[int, Decimal] = {r.category_id: r.total for r in spending_rows}
+
+    # Net split repayments out of each category's spending so budget usage
+    # reflects the user's real share of shared expenses.
+    settlements = _settlements_by_category_id(db, current_user.id, month_start, month_end)
+    for cat_id, reimbursed in settlements.items():
+        if cat_id in spending_map:
+            spending_map[cat_id] = max(Decimal("0"), spending_map[cat_id] - reimbursed)
 
     results: list[BudgetVsActualItem] = []
     for row in budget_rows:
